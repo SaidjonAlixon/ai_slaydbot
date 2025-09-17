@@ -1,0 +1,304 @@
+1) Maqsad va qamrov
+
+Bot foydalanuvchiga AI (ChatGPT API) orqali taqdimot kontenti tayyorlab beradi.
+
+Hozircha faqat 1 ta topshiriq turi: “Taqdimot tayyorlash”.
+
+Taqdimot tuzilmasi qat’iy:
+
+1-sahifa: Mavzu nomi + Kirish (qisqacha ta’rif/kontext).
+
+2..N-sahifalar: Mavzudan asosiy bo‘lim sarlavhalari va har biri uchun bulletlar.
+
+Oxirgi bitta sahifa (N+1): Xulosa.
+
+Oxirgi ikkinchi sahifa (N+2): Foydalanilgan adabiyotlar (kamida 3–5 manba).
+
+Chiqish fayli: .pptx (faqat PPT).
+
+2) Platforma va stack (ma’lumot uchun)
+
+Bot: Python (aiogram 3) — kod yozilmaydi, faqat TZ talab.
+
+Webhook: FastAPI (health/webhook).
+
+ChatGPT API (OpenAI) — kontent generatsiya.
+
+SQLite — ma’lumotlar bazasi.
+
+python-pptx — slayd generatsiya (faqat talab sifatida keltiriladi).
+
+3) Onboarding va maxfiylik
+
+/start bosilganda:
+
+Foydalanuvchidan ism-familiya matn ko‘rinishida so‘ralsin (majburiy).
+
+Telefon raqami — ixtiyoriy (Reply tugmada “Kontakt yuborish”), yonida “O‘tkazib yuborish”.
+
+Keyin Bosh menyuga o‘tiladi.
+
+Telefon so‘rash sababi bir martalik izoh ko‘rinishida tushuntiriladi (ishonch, bog‘lanish, statistika).
+
+4) Bosh menyu (Reply Keyboard)
+
+Taqdimot tayyorlash
+
+Bot haqida
+
+(Kelajak uchun joy qoldiriladi: “Balansim”, “Aloqa”, va h.k. — lekin hozircha yo‘q)
+
+5) “Taqdimot tayyorlash” oqimi (aniq ketma-ketlik)
+
+Tarif tanlash (Inline):
+
+Start tarifi
+
+Standart tarifi
+
+⬅️ Orqaga (Bosh menyuga qaytish)
+
+Hozircha ikkisi ham bepul; farqi: Start — minimal, Standart — boyroq kontent (ChatGPT prompt parametrida boshqariladi).
+
+Mavzu so‘rash (matn):
+
+Qoidalar: to‘liq sarlavha talab qilinadi (kamida 2 ta so‘z).
+
+Misol: “Interstellar — kino haqida” ✅; “Interstellar” ❌.
+
+Sahifalar soni so‘rash (faqat butun son):
+
+Minimal 5 ta (1–4 kiritilsa rad: “Bu qiymatdagi taqdimotni tayyorlash imkonsiz!”).
+
+Eslatma: yakuniy slaydlar soni foydalanuvchi so‘ragan N + 2 ta (Xulosa, Adabiyotlar).
+
+Preview (yakuniy ko‘rinish):
+
+Mavzu: …
+
+Sahifalar: N (+2 slayd avtomatik: Xulosa, Adabiyotlar)
+
+Talaba: ro‘yxatdan o‘tgan ism-familiya
+
+Tugmalar (Inline): Ha ✅ | Yo‘q ❌
+
+1-tasdiq:
+
+Yo‘q → Mavzu va Sahifalarni qayta tahrirlashga yuboriladi (ketma-ket savollar bilan).
+
+Ha → 2-tasdiqga o‘tadi.
+
+2-tasdiq (xavfsizlik):
+
+Matn: “Buyurtmani tasdiqlaysizmi? 2-bosqichli tasdiqdan so‘ng ish boshlanadi.”
+
+Tugmalar: Ha ✅ | Yo‘q ❌
+
+Ha → GENERATING; Yo‘q → Bosh menyu.
+
+Generatsiya:
+
+ChatGPT’dan kontent JSON ko‘rinishida olinadi (qarang §7).
+
+JSON → python-pptx orqali brendli .pptx yaratiladi.
+
+Yakun:
+
+Bot foydalanuvchiga .pptx faylini yuboradi (sendDocument).
+
+Caption: “Tarif: … | Sahifalar: N (+2) | Buyurtma ID: #…”.
+
+6) Klaviatura va tugmalar (to‘liq ro‘yxat)
+6.1 Reply Keyboard (doimiy)
+
+Qator-1: Taqdimot tayyorlash
+
+Qator-2: Bot haqida
+
+6.2 Inline Keyboard — Taqdimot bo‘limida
+
+Tarif tanlash:
+
+Start tarifi, Standart tarifi
+
+⬅️ Orqaga
+
+Preview/Tasdiq:
+
+Ha ✅, Yo‘q ❌
+
+(Tahrir holatida) Mavzuni tahrirlash, Sahifani tahrirlash (ixtiyoriy)
+
+6.3 Kontakt uchun Reply tugmalar
+
+Kontakt yuborish (request_contact=True)
+
+O‘tkazib yuborish
+
+7) ChatGPT API orqali kontent talablari
+7.1 Prompt talablari (Uzbekcha, qat’iy format)
+
+Modeldan qat’iy JSON talab qilinadi.
+
+Kirish parametrlari: {topic}, {pages} (foydalanuvchi kiritgan N).
+
+Qat’iy tuzilma (JSON massiv):
+
+1-element (0-indeks):
+
+{
+  "type": "cover",
+  "title": "<Mavzu to‘liq nomi>",
+  "intro": "<Kirish matni (2–4 gap)>"
+}
+
+
+Keyingi elementlar (1..N): (har biri bitta bo‘lim slaydi)
+
+{
+  "type": "section",
+  "heading": "<Bo‘lim sarlavhasi>",
+  "bullets": ["punkt 1", "punkt 2", "punkt 3"]
+}
+
+
+Eslatma: bu bo‘lim sarlavhalari mavzudan mantiqan olinadi (reja). pages = N bo‘lsa, section elementlari soni N-1 bo‘lmaydi — N-1 emas, N bo‘lishi shart emas. Bizda umumiy talab: cover (1) + section (N-2) + conclusion (1) + references (1) = N mantiq emas, chunki foydalanuvchi N ni “asosiy bloklar soni” deb kiritadi. Shuning uchun qat’iy qoida:
+Jami slaydlar = N (foydalanuvchi so‘ragan) + 2 (Xulosa + Adabiyotlar).
+Demak, section elementlari soni = N-1? Yo‘q — cover allaqachon 1 ni oladi. To‘liq formulani aniq belgilaymiz:
+
+cover: 1 ta
+
+section: (N-2) ta (chunki yana 2 ta slayd — xulosa va adabiyotlar uchun ajratiladi)
+
+conclusion: 1 ta
+
+references: 1 ta
+
+Jami: 1 + (N-2) + 1 + 1 = N+1 chiqyapti; ammo bizga N+2 kerak. Shuning uchun section sonini (N-3) emas, (N-2) qoldirib, extra sahifani “Savollar va muhokama” bilan to‘ldiramiz (quyida birxillik uchun majburiy).
+
+Oxiridan ikkinchi element:
+
+{
+  "type": "conclusion",
+  "summary": "<Xulosa (2–4 gap)>"
+}
+
+
+Oxirgi element:
+
+{
+  "type": "references",
+  "items": [
+    "<Manba 1>",
+    "<Manba 2>",
+    "<Manba 3>"
+  ]
+}
+
+
+Qo‘shimcha (majburiy): “savollar” slaydi (xulosadan oldin)
+
+{
+  "type": "questions",
+  "prompt": "Savollar va muhokama"
+}
+
+
+Slaydlar soni hisoblash qoidasi (aniq):
+Foydalanuvchi kiritgan N — bu asosiy taqdimot slaydlari soni (cover va content bloklar). Yakuniy paketga doim +2 slayd qo‘shamiz: Xulosa va Adabiyotlar. Shunday qilib:
+
+cover: 1 ta
+
+section: (N-2) ta
+
+questions: 1 ta
+
+conclusion: 1 ta
+
+references: 1 ta
+
+Jami: 1 + (N-2) + 1 + 1 + 1 = N+2 ✅
+
+Shart: N ≥ 5 bo‘lsa, (N-2) kamida 3 ta section chiqadi: yetarli.
+
+7.2 Til va uslub talablari
+
+Til: o‘zbek (adabiy, sodda, plagiatsiz).
+
+Bullets: har slaydda 3–5 punkt, bir-biridan ma’noli farq qilsin.
+
+References: real yoki umumiy ko‘rinishda (kamida 3–5), format: “Muallif, asar/sahifa, yil (yoki URL)”.
+
+7.3 Validatsiya (backend mantiq)
+
+JSON qat’iy formatda kelsin; noto‘g‘ri bo‘lsa qayta so‘rov yuborilsin.
+
+Elementlar soni aniq hisob bo‘yicha tekshirilsin:
+
+1 ta cover, (N-2) ta section, 1 ta questions, 1 ta conclusion, 1 ta references.
+
+Bo‘lim sarlavhalari takrorlanmasin.
+
+“References” bo‘limida kamida 3 ta manba.
+
+8) PPT dizayn talablari (kontentni joylash)
+
+Shablon: bitta brend .potx (fon, rang, fontlar).
+
+Cover: sarlavha yirik, tagida Kirish matni (2–4 gap).
+
+Section slaydlar: sarlavha + 3–5 bullet.
+
+Questions slaydi: “Savollar va muhokama” sarlavha, 2–3 yo‘riq bullet (ixtiyoriy).
+
+Conclusion: “Xulosa” sarlavha + 3–5 bullet yoki 2–4 gap.
+
+References: ro‘yxat ko‘rinishida 3–5 band; satrlar orasini ixcham.
+
+9) SQLite ma’lumotlar bazasi (DDL talablari, qisqa)
+
+users(id, tg_id*, full_name, phone?, username?, ref_by?, created_at)
+
+orders(id, user_id*, tariff[START/STANDARD], topic, pages, status[PENDING/GENERATING/DONE/FAILED/CANCELED], file_path?, created_at, finished_at?)
+
+audit_logs(id, user_id?, action, meta(json/string), created_at)
+
+PRAGMA: journal_mode=WAL, synchronous=NORMAL.
+
+10) FSM holatlari (aniq)
+
+Onboarding FSM:
+ASK_FULLNAME → ASK_CONTACT (optional) → MENU
+
+Order FSM:
+CHOOSE_TARIFF → ASK_TOPIC → ASK_PAGES → PREVIEW → CONFIRM_1 → CONFIRM_2 → GENERATING → DONE|FAILED
+
+11) Xatolik va cheklovlar
+
+Sahifa < 5: “Bu qiymatdagi taqdimotni tayyorlash imkonsiz!”
+
+Mavzu 2 so‘zdan kam: “Mavzuni to‘liq kiriting (kamida 2 so‘z).”
+
+Bir foydalanuvchi: bir vaqtning o‘zida bitta aktiv buyurtma (serverni himoya qilish).
+
+Timeout: AI generatsiyasi muvaffaqiyatsiz bo‘lsa FAILED, foydalanuvchiga “Qayta urinib ko‘ring” xabari.
+
+12) “Bot haqida”
+
+Siz bergan matn to‘liq chiqadi (jamoa, yillar, qamrov; hozircha qo‘shimcha linklar ko‘rsatilmaydi yoki qisqa variant).
+
+13) Qabul mezonlari (Acceptance)
+
+/start → ism-familiya → ixtiyoriy kontakt → Bosh menyu.
+
+“Taqdimot tayyorlash” oqimi to‘liq ishlaydi: tarif tanlash, mavzu, sahifa (≥5), 2 tasdiq.
+
+ChatGPT dan qat’iy JSON keladi; elementlar soni N+2 qoidaga mos:
+
+1 cover, (N-2) section, 1 questions, 1 conclusion, 1 references.
+
+python-pptx bilan .pptx tuziladi: sahifalar to‘g‘ri joylashuvda.
+
+Yuborilgan fayl nomi va caption’da tarif, sahifalar va buyurtma ID ko‘rsatiladi.
+
+Xatoliklarda foydalanuvchi aniq va muloyim ogohlantirish oladi.
