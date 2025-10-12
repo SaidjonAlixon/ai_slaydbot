@@ -37,9 +37,28 @@ async def main():
         await init_db()
         logger.info("Database initialized successfully")
         
-        # Webhookni o'chirish (agar avval o'rnatilgan bo'lsa)
-        await bot.delete_webhook(drop_pending_updates=True)
-        logger.info("Webhook deleted, starting polling...")
+        # Webhookni to'liq o'chirish (agar avval o'rnatilgan bo'lsa)
+        try:
+            await bot.delete_webhook(drop_pending_updates=True)
+            logger.info("Webhook deleted successfully")
+            
+            # Webhook holatini tekshirish
+            webhook_info = await bot.get_webhook_info()
+            if webhook_info.url:
+                logger.warning(f"Webhook hali ham faol: {webhook_info.url}")
+                # Qo'shimcha urinish
+                await bot.delete_webhook(drop_pending_updates=True)
+                logger.info("Webhook qaytadan o'chirildi")
+            else:
+                logger.info("Webhook to'liq o'chirildi")
+                
+        except Exception as e:
+            logger.error(f"Webhook o'chirishda xatolik: {e}")
+        
+        logger.info("Starting polling...")
+        
+        # Railway da bot restart qilish uchun kichik kutish
+        await asyncio.sleep(2)
         
         print("🚀 Bot polling rejimida ishga tushmoqda...")
         
