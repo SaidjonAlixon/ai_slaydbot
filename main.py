@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Environment o'zgaruvchilar
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_HOST = os.getenv("RAILWAY_STATIC_URL", "0.0.0.0")
+WEBHOOK_HOST = os.getenv("RAILWAY_PUBLIC_DOMAIN", os.getenv("RAILWAY_STATIC_URL", "0.0.0.0"))
 WEBHOOK_PORT = int(os.getenv("PORT", "8000"))
 WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}" if BOT_TOKEN else "/webhook"
 
@@ -52,12 +52,20 @@ async def setup_webhook():
         await init_db()
         logger.info("Database initialized successfully")
         
-        # Webhook o'rnatish
+        # Avval webhookni o'chirish
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Old webhook deleted")
+        
+        # Yangi webhook o'rnatish
         await bot.set_webhook(
             url=WEBHOOK_URL,
             drop_pending_updates=True
         )
         logger.info(f"Webhook set to {WEBHOOK_URL}")
+        
+        # Webhook holatini tekshirish
+        webhook_info = await bot.get_webhook_info()
+        logger.info(f"Webhook info: {webhook_info}")
         
     except Exception as e:
         logger.error(f"Webhook setup error: {e}")
