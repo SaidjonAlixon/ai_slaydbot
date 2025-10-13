@@ -22,13 +22,13 @@ async def main():
     """Asosiy funksiya - polling rejimida bot ishga tushirish"""
     if not BOT_TOKEN:
         logger.error("BOT_TOKEN topilmadi!")
-        print("❌ BOT_TOKEN environment variable kerak!")
+        print("BOT_TOKEN environment variable kerak!")
         print("Telegram @BotFather dan bot yaratib, tokenni oling")
         return
     
     if not os.getenv("OPENAI_API_KEY"):
         logger.error("OPENAI_API_KEY topilmadi!")
-        print("❌ OPENAI_API_KEY environment variable kerak!")
+        print("OPENAI_API_KEY environment variable kerak!")
         print("OpenAI platformasidan API key oling")
         return
     
@@ -60,14 +60,14 @@ async def main():
         # Railway da bot restart qilish uchun kichik kutish
         await asyncio.sleep(2)
         
-        print("🚀 Bot polling rejimida ishga tushmoqda...")
+        print("Bot polling rejimida ishga tushmoqda...")
         
         # Polling ishga tushirish
         await dp.start_polling(bot)
         
     except Exception as e:
         logger.error(f"Bot ishga tushishda xatolik: {e}")
-        print(f"❌ Xatolik: {e}")
+        print(f"Xatolik: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
