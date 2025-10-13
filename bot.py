@@ -531,12 +531,12 @@ async def process_tariff_selection(callback: types.CallbackQuery, state: FSMCont
         start_text = (
             f"🚀 **Start tarifini tanladingiz!**\n\n"
             f"Ushbu tarifdan foydalanish besh marotabagacha bepul! "
-            f"(*beshinchisi hisobga kirmaydi!)\n\n"
-            f"Undan keyin esa har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz.\n"
+            f"\\(beshinchisi hisobga kirmaydi!\\)\n\n"
+            f"Undan keyin esa har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz\\.\n"
             f"Format: **PPT**\n\n"
             f"Endi esa **Mavzu nomini to'liq va aniq kiriting:**\n\n"
             f"**Misol:**\n"
-            f"Interstellar - kino haqida ✅\n"
+            f"Interstellar \\- kino haqida ✅\n"
             f"Interstellar ❌"
         )
     else:
@@ -547,12 +547,16 @@ async def process_tariff_selection(callback: types.CallbackQuery, state: FSMCont
         else:
             format_text = "PPT"
             
+        # Markdown'da maxsus belgilarni escape qilish
+        tariff_name = tariff_info['name'].replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace('`', '\\`')
+        format_name = format_text.replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace('`', '\\`')
+        
         start_text = (
-            f"💰 **{tariff_info['name']}ni tanladingiz!**\n\n"
-            f"Format: **{format_text}**\n\n"
+            f"💰 **{tariff_name}ni tanladingiz!**\n\n"
+            f"Format: **{format_name}**\n\n"
             f"Endi esa **Mavzu nomini to'liq va aniq kiriting:**\n\n"
             f"**Misol:**\n"
-            f"Interstellar - kino haqida ✅\n"
+            f"Interstellar \\- kino haqida ✅\n"
             f"Interstellar ❌"
         )
     
@@ -1282,17 +1286,30 @@ async def generate_presentation_task(user_tg_id: int, order_id: int, topic: str,
 
 # Error handler
 @dp.error()
-async def error_handler(event, exception):
+async def error_handler(event, **kwargs):
     """Xatoliklar bilan ishlash"""
     import logging
     logger = logging.getLogger(__name__)
-    logger.error(f"Bot xatoligi: {exception}")
+    
+    # Exception'ni to'g'ri olish
+    exception = None
+    if 'exception' in kwargs:
+        exception = kwargs['exception']
+    elif hasattr(event, 'exception'):
+        exception = event.exception
+    
+    if exception:
+        logger.error(f"Bot xatoligi: {exception}")
+    else:
+        logger.warning("Noma'lum xatolik yuz berdi")
     
     # Foydalanuvchiga umumiy xatolik xabari
     if hasattr(event, 'message') and event.message:
         try:
             await event.message.answer(
-                "Xatolik yuz berdi! Iltimos, qaytadan urinib ko'ring yoki /start buyrug'ini yuboring."
+                "❌ **Xatolik yuz berdi!**\n\n"
+                "Iltimos, qaytadan urinib ko'ring yoki /start buyrug'ini yuboring.",
+                parse_mode="Markdown"
             )
         except:
             pass
