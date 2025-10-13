@@ -1105,7 +1105,7 @@ async def get_referral_link(callback: types.CallbackQuery):
         return
     
     # Referral link yaratish
-    referral_link = f"https://t.me/your_bot_username?start=ref_{callback.from_user.id}"
+    referral_link = f"https://t.me/preuz_bot?start=ref_{callback.from_user.id}"
     
     referral_text = (
         "👥 **Do'stlarni taklif qilish:**\n\n"
