@@ -2273,9 +2273,11 @@ async def process_balance_amount(message: types.Message, state: FSMContext):
         balance = await get_user_balance(user_id)
         user = await get_user_by_tg_id(user_id)
         
+        full_name = user.get('full_name', 'Noma\'lum')
+        
         await message.answer(
             f"{emoji} **Balans muvaffaqiyatli {action_text}!**\n\n"
-            f"👤 **Foydalanuvchi:** {user.get('full_name', 'Noma\'lum')}\n"
+            f"👤 **Foydalanuvchi:** {full_name}\n"
             f"💰 **Yangi balans:** {balance['total_balance']:,} so'm\n"
             f"💳 **Naqt balans:** {balance['cash_balance']:,} so'm\n"
             f"🎁 **Referral balans:** {balance['referral_balance']:,} so'm",
