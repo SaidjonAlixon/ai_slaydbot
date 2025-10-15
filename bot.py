@@ -2194,9 +2194,12 @@ async def process_balance_user_id(message: types.Message, state: FSMContext):
                 [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_balance")]
             ])
             
+            full_name = user.get('full_name', 'Noma\'lum')
+            username = user.get('username', 'Noma\'lum')
+            
             await message.answer(
-                f"👤 **Foydalanuvchi:** {user.get('full_name', 'Noma\'lum')}\n"
-                f"📱 **Username:** @{user.get('username', 'Noma\'lum')}\n"
+                f"👤 **Foydalanuvchi:** {full_name}\n"
+                f"📱 **Username:** @{username}\n"
                 f"💳 **Joriy balans:** {balance['total_balance']:,} so'm\n\n"
                 f"Balans boshqarish uchun amalni tanlang:",
                 parse_mode="Markdown",
