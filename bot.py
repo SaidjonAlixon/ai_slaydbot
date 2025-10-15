@@ -289,7 +289,8 @@ async def start_handler(message: types.Message, state: FSMContext):
         if referral_id:
             referrer = await get_user_by_tg_id(referral_id)
             if referrer:
-                welcome_text += f"🎉 Sizni {referrer.get('full_name', 'Do\'stingiz')} taklif qildi!\n\n"
+                referrer_name = referrer.get('full_name', 'Do\'stingiz')
+                welcome_text += f"🎉 Sizni {referrer_name} taklif qildi!\n\n"
                 # Referral yaratish
                 await create_referral(referral_id, message.from_user.id)
         
