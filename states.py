@@ -5,6 +5,15 @@ class OnboardingStates(StatesGroup):
     ASK_FULLNAME = State()
     ASK_CONTACT = State()
     MENU = State()
+    BROADCAST_MESSAGE = State()
+    USER_ID_INPUT = State()
+    USER_MESSAGE = State()
+    BALANCE_USER_ID = State()
+    BALANCE_ACTION = State()
+    BALANCE_AMOUNT = State()
+    RECEIPT_FIRST = State()
+    RECEIPT_SECOND = State()
+    TEST_TOPIC = State()
 
 class OrderStates(StatesGroup):
     """Buyurtma holatlari"""

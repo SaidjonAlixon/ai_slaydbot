@@ -1,25 +1,32 @@
 # Environment variables
 .env
 
-# Python cache
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Virtual environment
 venv/
 env/
 ENV/
-
-# Database
-*.db
-*.sqlite
-
-# Generated files
-*.pptx
-*.pdf
 
 # IDE
 .vscode/
@@ -30,3 +37,22 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+temp/
+tmp/
+
+# Presentations (keep generated files)
+# presentations/
+
+# But don't ignore the presentations directory structure
+!presentations/
+!presentations/.gitkeep

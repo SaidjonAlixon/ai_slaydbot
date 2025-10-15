@@ -68,6 +68,68 @@ async def init_db():
             )
         """)
         
+        # User balances jadvali
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS user_balances (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_tg_id INTEGER UNIQUE NOT NULL,
+                total_balance INTEGER DEFAULT 0,
+                cash_balance INTEGER DEFAULT 0,
+                referral_balance INTEGER DEFAULT 0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_tg_id) REFERENCES users (tg_id)
+            )
+        """)
+        
+        # Referral system jadvali
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS referrals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                referrer_tg_id INTEGER NOT NULL,
+                referred_tg_id INTEGER UNIQUE NOT NULL,
+                bonus_earned INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                confirmed_at TIMESTAMP,
+                FOREIGN KEY (referrer_tg_id) REFERENCES users (tg_id),
+                FOREIGN KEY (referred_tg_id) REFERENCES users (tg_id)
+            )
+        """)
+        
+        # Payment transactions jadvali
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_tg_id INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
+                transaction_type TEXT NOT NULL,
+                description TEXT,
+                order_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_tg_id) REFERENCES users (tg_id),
+                FOREIGN KEY (order_id) REFERENCES orders (id)
+            )
+        """)
+        
+        # Admin settings jadvali
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                setting_key TEXT UNIQUE NOT NULL,
+                setting_value TEXT NOT NULL,
+                description TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Default referral settings qo'shish
+        await db.execute("""
+            INSERT OR IGNORE INTO admin_settings (setting_key, setting_value, description)
+            VALUES 
+                ('referral_reward_referrer', '1000', 'Taklif qilgan foydalanuvchi uchun bonus'),
+                ('referral_reward_referred', '500', 'Taklif qilingan foydalanuvchi uchun bonus')
+        """)
+        
         await db.commit()
 
 
@@ -279,6 +341,266 @@ async def get_user_orders(user_tg_id: int, limit: int = 10) -> List[Dict[str, An
         """, (user_tg_id, limit)) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
+
+# Balans funksiyalari
+async def get_user_balance(user_tg_id: int) -> Dict[str, int]:
+    """Foydalanuvchi balansini olish"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM user_balances WHERE user_tg_id = ?
+        """, (user_tg_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return dict(row)
+            else:
+                # Agar balans yo'q bo'lsa, yangi yaratish
+                await db.execute("""
+                    INSERT INTO user_balances (user_tg_id, total_balance, cash_balance, referral_balance)
+                    VALUES (?, 0, 0, 0)
+                """, (user_tg_id,))
+                await db.commit()
+                return {
+                    'user_tg_id': user_tg_id,
+                    'total_balance': 0,
+                    'cash_balance': 0,
+                    'referral_balance': 0
+                }
+
+
+async def update_user_balance(user_tg_id: int, amount: int, balance_type: str = 'cash') -> bool:
+    """Foydalanuvchi balansini yangilash"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        # Balans mavjudligini tekshirish
+        async with db.execute("""
+            SELECT id FROM user_balances WHERE user_tg_id = ?
+        """, (user_tg_id,)) as cursor:
+            row = await cursor.fetchone()
+            
+            if not row:
+                # Yangi balans yaratish
+                await db.execute("""
+                    INSERT INTO user_balances (user_tg_id, total_balance, cash_balance, referral_balance)
+                    VALUES (?, ?, ?, ?)
+                """, (user_tg_id, amount, amount if balance_type == 'cash' else 0, amount if balance_type == 'referral' else 0))
+            else:
+                # Mavjud balansni yangilash
+                if balance_type == 'cash':
+                    await db.execute("""
+                        UPDATE user_balances 
+                        SET cash_balance = cash_balance + ?, 
+                            total_balance = total_balance + ?,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE user_tg_id = ?
+                    """, (amount, amount, user_tg_id))
+                elif balance_type == 'referral':
+                    await db.execute("""
+                        UPDATE user_balances 
+                        SET referral_balance = referral_balance + ?, 
+                            total_balance = total_balance + ?,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE user_tg_id = ?
+                    """, (amount, amount, user_tg_id))
+        
+        await db.commit()
+        return True
+
+
+async def deduct_user_balance(user_tg_id: int, amount: int) -> bool:
+    """Foydalanuvchi balansidan mablag' yechish"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        # Balans yetarli ekanligini tekshirish
+        balance = await get_user_balance(user_tg_id)
+        if balance['total_balance'] < amount:
+            return False
+            
+        await db.execute("""
+            UPDATE user_balances 
+            SET total_balance = total_balance - ?,
+                last_updated = CURRENT_TIMESTAMP
+            WHERE user_tg_id = ?
+        """, (amount, user_tg_id))
+        await db.commit()
+        return True
+
+
+# Referral funksiyalari
+async def create_referral(referrer_tg_id: int, referred_tg_id: int) -> bool:
+    """Yangi referral yaratish"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        try:
+            await db.execute("""
+                INSERT INTO referrals (referrer_tg_id, referred_tg_id, status)
+                VALUES (?, ?, 'pending')
+            """, (referrer_tg_id, referred_tg_id))
+            await db.commit()
+            return True
+        except aiosqlite.IntegrityError:
+            # Agar referral allaqachon mavjud bo'lsa
+            return False
+
+
+async def confirm_referral(referred_tg_id: int) -> bool:
+    """Referralni tasdiqlash va bonus berish"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        # Referralni topish
+        async with db.execute("""
+            SELECT referrer_tg_id FROM referrals 
+            WHERE referred_tg_id = ? AND status = 'pending'
+        """, (referred_tg_id,)) as cursor:
+            row = await cursor.fetchone()
+            
+            if not row:
+                return False
+                
+            referrer_tg_id = row[0]
+            
+            # Referral bonuslarini olish
+            rewards = await get_referral_rewards()
+            referrer_reward = rewards['referrer_reward']
+            referred_reward = rewards['referred_reward']
+            
+            # Referralni tasdiqlash
+            await db.execute("""
+                UPDATE referrals 
+                SET status = 'confirmed', 
+                    bonus_earned = ?,
+                    confirmed_at = CURRENT_TIMESTAMP
+                WHERE referred_tg_id = ?
+            """, (referrer_reward, referred_tg_id))
+            
+            # Referrer ga bonus berish
+            await update_user_balance(referrer_tg_id, referrer_reward, 'referral')
+            
+            # Referred user ga ham bonus berish
+            await update_user_balance(referred_tg_id, referred_reward, 'referral')
+            
+            await db.commit()
+            return True
+
+
+async def get_referral_stats(user_tg_id: int) -> Dict[str, Any]:
+    """Referral statistikasini olish"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        # Umumiy referrallar soni
+        async with db.execute("""
+            SELECT COUNT(*) as total FROM referrals WHERE referrer_tg_id = ?
+        """, (user_tg_id,)) as cursor:
+            total_referrals = (await cursor.fetchone())[0]
+        
+        # Tasdiqlangan referrallar soni
+        async with db.execute("""
+            SELECT COUNT(*) as confirmed FROM referrals 
+            WHERE referrer_tg_id = ? AND status = 'confirmed'
+        """, (user_tg_id,)) as cursor:
+            confirmed_referrals = (await cursor.fetchone())[0]
+        
+        # Jami bonus
+        async with db.execute("""
+            SELECT SUM(bonus_earned) as total_bonus FROM referrals 
+            WHERE referrer_tg_id = ? AND status = 'confirmed'
+        """, (user_tg_id,)) as cursor:
+            total_bonus = (await cursor.fetchone())[0] or 0
+        
+        # Bu oy referrallar
+        async with db.execute("""
+            SELECT COUNT(*) as this_month FROM referrals 
+            WHERE referrer_tg_id = ? AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
+        """, (user_tg_id,)) as cursor:
+            this_month = (await cursor.fetchone())[0]
+        
+        return {
+            'total_referrals': total_referrals,
+            'confirmed_referrals': confirmed_referrals,
+            'pending_referrals': total_referrals - confirmed_referrals,
+            'total_bonus': total_bonus,
+            'this_month': this_month
+        }
+
+
+async def get_user_free_orders_count(user_tg_id: int) -> int:
+    """Foydalanuvchining bepul buyurtmalar sonini olish (START tarifi uchun)"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        async with db.execute("""
+            SELECT COUNT(*) FROM presentations 
+            WHERE user_tg_id = ? AND tariff = 'START' AND status = 'completed'
+        """, (user_tg_id,)) as cursor:
+            return (await cursor.fetchone())[0]
+
+
+async def add_transaction(user_tg_id: int, amount: int, transaction_type: str, description: str = None, order_id: int = None) -> int:
+    """Tranzaksiya qo'shish"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        cursor = await db.execute("""
+            INSERT INTO transactions (user_tg_id, amount, transaction_type, description, order_id)
+            VALUES (?, ?, ?, ?, ?)
+        """, (user_tg_id, amount, transaction_type, description, order_id))
+        await db.commit()
+        return cursor.lastrowid
+
+
+# Admin settings funksiyalari
+async def get_admin_setting(setting_key: str, default_value: str = None) -> str:
+    """Admin sozlamasini olish"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        async with db.execute("""
+            SELECT setting_value FROM admin_settings WHERE setting_key = ?
+        """, (setting_key,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else default_value
+
+
+async def update_admin_setting(setting_key: str, setting_value: str, description: str = None) -> bool:
+    """Admin sozlamasini yangilash"""
+    
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        cursor = await db.execute("""
+            INSERT OR REPLACE INTO admin_settings (setting_key, setting_value, description, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        """, (setting_key, setting_value, description))
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def get_referral_rewards() -> Dict[str, int]:
+    """Referral bonuslarini olish"""
+    
+    referrer_reward = await get_admin_setting('referral_reward_referrer', '1000')
+    referred_reward = await get_admin_setting('referral_reward_referred', '500')
+    
+    return {
+        'referrer_reward': int(referrer_reward),
+        'referred_reward': int(referred_reward)
+    }
+
+
+async def update_referral_rewards(referrer_reward: int, referred_reward: int) -> bool:
+    """Referral bonuslarini yangilash"""
+    
+    try:
+        await update_admin_setting(
+            'referral_reward_referrer', 
+            str(referrer_reward), 
+            'Taklif qilgan foydalanuvchi uchun bonus'
+        )
+        await update_admin_setting(
+            'referral_reward_referred', 
+            str(referred_reward), 
+            'Taklif qilingan foydalanuvchi uchun bonus'
+        )
+        return True
+    except Exception:
+        return False
 
 
 async def cleanup_old_files():

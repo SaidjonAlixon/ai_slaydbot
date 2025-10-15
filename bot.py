@@ -4,6 +4,9 @@ import os
 import json
 from typing import Optional
 from dotenv import load_dotenv
+import pytz
+from datetime import datetime, timedelta
+from openai import AsyncOpenAI
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, StateFilter
@@ -13,10 +16,15 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
 from states import OnboardingStates, OrderStates
+from aiogram.exceptions import TelegramBadRequest
 from database import (
     init_db, get_user_by_tg_id, create_user, create_order, 
     get_active_order, update_order_status, log_action,
-    save_presentation, save_slide, get_user_statistics
+    save_presentation, save_slide, get_user_statistics,
+    get_user_balance, update_user_balance, deduct_user_balance,
+    create_referral, confirm_referral, get_referral_stats,
+    get_user_free_orders_count, add_transaction,
+    get_referral_rewards, get_all_users, update_referral_rewards
 )
 from openai_client import generate_presentation_content
 from pptx_generator import create_presentation_file
@@ -28,6 +36,38 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variablesi topilmadi!")
+
+# OpenAI API key
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "test_key")
+if OPENAI_API_KEY == "test_key":
+    print("OPENAI_API_KEY topilmadi! Test rejimida ishlaydi.")
+    OPENAI_API_KEY = None
+    openai_client = None
+else:
+    # OpenAI client sozlash (yangi format)
+    openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+# Admin ID larini environment variabledan olish
+ADMIN_IDS = os.getenv("ADMIN_IDS", "").split(",")
+ADMIN_IDS = [int(admin_id.strip()) for admin_id in ADMIN_IDS if admin_id.strip()]
+
+# Vaqt sozlamalari
+TASHKENT_TZ = pytz.timezone('Asia/Tashkent')
+
+def get_current_time():
+    """Hozirgi Toshkent vaqtini qaytaradi"""
+    return datetime.now(TASHKENT_TZ)
+
+def format_time(dt=None):
+    """Vaqtni formatlash"""
+    if dt is None:
+        dt = get_current_time()
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+async def generate_presentation_content(topic: str, pages: int) -> dict:
+    """ChatGPT API dan taqdimot kontentini yaratish - yangi struktura"""
+    from pptx_generator import generate_presentation_content_with_gpt
+    return await generate_presentation_content_with_gpt(topic, pages)
 
 # Logging sozlash
 logging.basicConfig(
@@ -44,9 +84,9 @@ dp = Dispatcher(storage=storage)
 TARIFFS = {
     "START": {
         "name": "Start tarifi 🚀",
-        "price": "Bepul (5 marta)",
+        "price": "Bepul (1 marta)",
         "price_per_page": 2000,
-        "features": ["5 marta bepul", "Har sahifa 2000 so'm", "PPT format"]
+        "features": ["1 marta bepul", "Har sahifa 2000 so'm", "PPT format"]
     },
     "STANDARD": {
         "name": "Standard tarifi 💎",
@@ -85,6 +125,100 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)
 
 
+# Admin tekshirish funksiyasi
+async def is_admin(user_id: int) -> bool:
+    """Foydalanuvchi admin ekanligini tekshirish"""
+    return user_id in ADMIN_IDS
+
+# Admin guruhga taqdimot yuborish funksiyasi
+async def send_presentation_to_admin_group(user_tg_id: int, topic: str, pages: int, tariff: str, file_path: str):
+    """Tayyorlangan taqdimotni admin guruhga yuborish"""
+    try:
+        # Guruh ID
+        group_id = int(os.getenv("GROUP_ID", "-1001234567890"))
+        
+        # Foydalanuvchi ma'lumotlarini olish
+        user = await get_user_by_tg_id(user_tg_id)
+        if not user:
+            return
+        
+        # Balans ma'lumotlarini olish
+        balance = await get_user_balance(user_tg_id)
+        
+        # Tarif narxini hisoblash
+        tariff_info = TARIFFS[tariff]
+        total_price = pages * tariff_info['price_per_page']
+        
+        # Fayl nomini tayyorlash
+        filename = f"taqdimot_{topic.replace(' ', '_')}.pptx"
+        
+        # Admin guruhga fayl yuborish
+        from aiogram.types import FSInputFile
+        input_file = FSInputFile(file_path, filename=filename)
+        
+        # Xavfsiz matn tayyorlash
+        safe_full_name = str(user.get('full_name', 'Noma\'lum')).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
+        safe_username = str(user.get('username', 'Noma\'lum')).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
+        safe_topic = str(topic).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
+        safe_tariff_name = str(tariff_info['name']).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
+        safe_filename = str(filename).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
+        
+        await bot.send_document(
+            chat_id=group_id,
+            document=input_file,
+            caption=f"📊 **Yangi taqdimot tayyorlandi\\!**\n\n"
+                   f"👤 **Foydalanuvchi:** {safe_full_name}\n"
+                   f"🆔 **ID:** {user_tg_id}\n"
+                   f"📱 **Username:** @{safe_username}\n\n"
+                   f"📋 **Taqdimot ma'lumotlari:**\n"
+                   f"• **Mavzu:** {safe_topic}\n"
+                   f"• **Sahifalar:** {pages} ta\n"
+                   f"• **Tarif:** {safe_tariff_name}\n"
+                   f"• **Narx:** {total_price:,} so'm\n\n"
+                   f"💰 **Foydalanuvchi balansi:** {balance['total_balance']:,} so'm\n"
+                   f"📅 **Tayyorlangan vaqt:** {format_time()}\n\n"
+                   f"📁 **Fayl:** {safe_filename}",
+            parse_mode="Markdown"
+        )
+        
+        # Log qilish
+        await log_action(user_tg_id, "presentation_sent_to_admin", {
+            'topic': topic,
+            'pages': pages,
+            'tariff': tariff,
+            'total_price': total_price,
+            'group_id': group_id
+        })
+        
+    except Exception as e:
+        logging.error(f"Admin guruhga taqdimot yuborishda xatolik: {e}")
+
+
+def get_admin_keyboard() -> ReplyKeyboardMarkup:
+    """Admin asosiy klaviaturasi"""
+    builder = ReplyKeyboardBuilder()
+    # Birinchi qator - 2 ta tugma
+    builder.row(
+        KeyboardButton(text="📢 Ommaviy xabar"),
+        KeyboardButton(text="💬 Bir kishiga xabar")
+    )
+    # Ikkinchi qator - 2 ta tugma
+    builder.row(
+        KeyboardButton(text="📊 Statistika"),
+        KeyboardButton(text="💰 Balans boshqarish")
+    )
+    # Uchinchi qator - 2 ta tugma
+    builder.row(
+        KeyboardButton(text="⚙️ Referral sozlamalari"),
+        KeyboardButton(text="🧪 ChatGPT Test")
+    )
+    # To'rtinchi qator - 1 ta tugma
+    builder.row(
+        KeyboardButton(text="🏠 Asosiy menyu")
+    )
+    return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)
+
+
 def get_contact_keyboard() -> ReplyKeyboardMarkup:
     """Kontakt bo'lishish klaviaturasi"""
     builder = ReplyKeyboardBuilder()
@@ -119,6 +253,19 @@ async def start_handler(message: types.Message, state: FSMContext):
     """Bot ishga tushganda birinchi handler"""
     if not message.from_user:
         return
+    
+    # Referral havola tekshirish
+    referral_id = None
+    if len(message.text.split()) > 1:
+        start_param = message.text.split()[1]
+        if start_param.startswith('ref_'):
+            try:
+                referral_id = int(start_param.replace('ref_', ''))
+                # Agar o'zini taklif qilmoqchi bo'lsa
+                if referral_id == message.from_user.id:
+                    referral_id = None
+            except ValueError:
+                referral_id = None
         
     user = await get_user_by_tg_id(message.from_user.id)
     
@@ -133,10 +280,23 @@ async def start_handler(message: types.Message, state: FSMContext):
         await state.set_state(OnboardingStates.MENU)
     else:
         # Yangi foydalanuvchi uchun ro'yxatdan o'tish
-        await message.answer(
+        welcome_text = (
             "Assalomu alaykum va xush kelibsiz! 👋\n\n"
             "Men sizga professional taqdimotlar tayyorlashda yordam beradigan botman.\n\n"
-            "Keling, tanishib olaylik! Ism-familiyangizni kiriting:",
+        )
+        
+        # Agar referral havola orqali kelgan bo'lsa
+        if referral_id:
+            referrer = await get_user_by_tg_id(referral_id)
+            if referrer:
+                welcome_text += f"🎉 Sizni {referrer.get('full_name', 'Do\'stingiz')} taklif qildi!\n\n"
+                # Referral yaratish
+                await create_referral(referral_id, message.from_user.id)
+        
+        welcome_text += "Keling, tanishib olaylik! Ism-familiyangizni kiriting:"
+        
+        await message.answer(
+            welcome_text,
             reply_markup=types.ReplyKeyboardRemove()
         )
         await state.set_state(OnboardingStates.ASK_FULLNAME)
@@ -204,10 +364,22 @@ async def finish_registration(message: types.Message, state: FSMContext):
     await create_user(user_data)
     await log_action(message.from_user.id, "user_registered", user_data)
     
-    await message.answer(
+    # Agar referral orqali kelgan bo'lsa, uni tasdiqlash
+    referral_confirmed = await confirm_referral(message.from_user.id)
+    
+    welcome_text = (
         f"🎉 Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!\n\n"
         f"Salom, {data.get('full_name')}! Endi siz botning barcha imkoniyatlaridan foydalanishingiz mumkin.\n\n"
-        "Quyidagi tugmalardan birini tanlang:",
+    )
+    
+    # Agar referral tasdiqlangan bo'lsa
+    if referral_confirmed:
+        welcome_text += "🎁 **Bonus:** Sizga referral bonus sifatida 500 so'm qo'shildi!\n\n"
+    
+    welcome_text += "Quyidagi tugmalardan birini tanlang:"
+    
+    await message.answer(
+        welcome_text,
         reply_markup=get_main_keyboard()
     )
     
@@ -440,25 +612,27 @@ async def my_balance(message: types.Message):
         await message.answer("Siz hali ro'yxatdan o'tmadingiz. /start buyrug'ini yuboring.")
         return
     
+    # Real balans ma'lumotlarini olish
+    balance = await get_user_balance(message.from_user.id)
+    
     # Foydalanuvchi statistikasini olish
     stats = await get_user_statistics(message.from_user.id)
     
-    # Balans ma'lumotlari (namuna)
-    total_balance = 30000  # Umumiy balans
-    cash_payment = 20000   # Naqt to'lov
-    referrals = 10         # Takliflar soni
-    referral_bonus = 10000 # Taklif mukofoti
+    # Referral statistikasini olish
+    referral_stats = await get_referral_stats(message.from_user.id)
     
+    current_time = format_time()
     balance_text = (
         f"💰 **Sizning balansingiz:**\n\n"
-        f"💳 **Umumiy balans:** {total_balance:,} so'm\n\n"
+        f"💳 **Umumiy balans:** {balance['total_balance']:,} so'm\n\n"
         f"📊 **Balans tafsilotlari:**\n"
-        f"• Naqt orqali to'langan: {cash_payment:,} so'm\n"
-        f"• {referrals} ta taklif uchun: {referral_bonus:,} so'm\n\n"
+        f"• Naqt orqali to'langan: {balance['cash_balance']:,} so'm\n"
+        f"• {referral_stats['confirmed_referrals']} ta taklif uchun: {balance['referral_balance']:,} so'm\n\n"
         f"📈 **Statistika:**\n"
         f"• Yaratilgan taqdimotlar: {stats.get('total_presentations', 0)}\n"
         f"• So'nggi faollik: {stats.get('last_activity', 'Hali yoq')}\n"
-        f"• Qo'shilgan sana: {user.get('created_at', 'Nomalum')}"
+        f"• Qo'shilgan sana: {user.get('created_at', 'Nomalum')}\n\n"
+        f"🕐 **Oxirgi yangilanish:** {current_time}"
     )
     
     # Balans tugmalari
@@ -518,6 +692,22 @@ async def user_stats(message: types.Message):
     await message.answer(stats_text, parse_mode="Markdown")
 
 
+@dp.message(Command("admin"))
+async def admin_panel(message: types.Message, state: FSMContext):
+    """Admin panel"""
+    if not message.from_user or not await is_admin(message.from_user.id):
+        await message.answer("❌ Sizda admin huquqi yo'q!")
+        return
+    
+    await message.answer(
+        "🔧 **Admin Panel**\n\n"
+        "Quyidagi funksiyalardan birini tanlang:",
+        reply_markup=get_admin_keyboard(),
+        parse_mode="Markdown"
+    )
+    await state.set_state(OnboardingStates.MENU)
+
+
 # Callback query handlers
 @dp.callback_query(F.data.startswith("tariff_"))
 async def process_tariff_selection(callback: types.CallbackQuery, state: FSMContext):
@@ -528,17 +718,34 @@ async def process_tariff_selection(callback: types.CallbackQuery, state: FSMCont
     tariff_info = TARIFFS[tariff_key]
     
     if tariff_key == "START":
-        start_text = (
-            f"🚀 **Start tarifini tanladingiz!**\n\n"
-            f"Ushbu tarifdan foydalanish besh marotabagacha bepul! "
-            f"\\(beshinchisi hisobga kirmaydi!\\)\n\n"
-            f"Undan keyin esa har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz\\.\n"
-            f"Format: **PPT**\n\n"
-            f"Endi esa **Mavzu nomini to'liq va aniq kiriting:**\n\n"
-            f"**Misol:**\n"
-            f"Interstellar \\- kino haqida ✅\n"
-            f"Interstellar ❌"
-        )
+        # Foydalanuvchining bepul buyurtmalar sonini olish
+        free_orders_count = await get_user_free_orders_count(callback.from_user.id)
+        remaining_free = 1 - free_orders_count
+        
+        if remaining_free > 0:
+            start_text = (
+                f"🚀 **Start tarifini tanladingiz!**\n\n"
+                f"Ushbu tarifdan foydalanish **{remaining_free} marta** bepul qoldi! "
+                f"\\(siz allaqachon {free_orders_count} marta foydalangansiz\\)\n\n"
+                f"Bepul buyurtmalar tugagach, har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz\\.\n"
+                f"Format: **PPT**\n\n"
+                f"Endi esa **Mavzu nomini to'liq va aniq kiriting:**\n\n"
+                f"**Misol:**\n"
+                f"Interstellar \\- kino haqida ✅\n"
+                f"Interstellar ❌"
+            )
+        else:
+            start_text = (
+                f"🚀 **Start tarifini tanladingiz!**\n\n"
+                f"⚠️ **Bepul buyurtmalar tugadi!** "
+                f"Siz allaqachon 1 marta bepul foydalangansiz\\.\n\n"
+                f"Endi har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz\\.\n"
+                f"Format: **PPT**\n\n"
+                f"Endi esa **Mavzu nomini to'liq va aniq kiriting:**\n\n"
+                f"**Misol:**\n"
+                f"Interstellar \\- kino haqida ✅\n"
+                f"Interstellar ❌"
+            )
     else:
         if tariff_key == "STANDARD":
             format_text = "PPT"
@@ -638,16 +845,26 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
     
     # Start tarifi uchun maxsus xabar
     if tariff_key == "START":
-        # Namuna: 3-chi buyurtma (bepul buyurtmalar sonini hisoblash kerak)
-        free_orders = 3  # Bu ma'lumotlar bazasidan kelishi kerak
-        remaining_free = 5 - free_orders
+        # Real bepul buyurtmalar sonini olish
+        free_orders = await get_user_free_orders_count(callback.from_user.id)
+        remaining_free = 1 - free_orders
+        tariff_info = TARIFFS[tariff_key]  # tariff_info ni aniqlash
         
-        second_confirmation_text = (
-            f"🔒 **Ikkinchi tasdiqlash bosqichi**\n\n"
-            f"Siz bepul obunada **{free_orders}-chi** buyurtmani amalga oshirmoqdasiz, "
-            f"sizda yana **{remaining_free} ta** bepul taqdimot tayyorlash imkoni qolmoqda!\n\n"
-            f"**Buyurtmangizni 100% tasdiqlashga imkoningiz komilmi?**"
-        )
+        if remaining_free > 0:
+            second_confirmation_text = (
+                f"🔒 **Ikkinchi tasdiqlash bosqichi**\n\n"
+                f"Siz bepul obunada **{free_orders + 1}-chi** buyurtmani amalga oshirmoqdasiz, "
+                f"sizda yana **{remaining_free - 1} ta** bepul taqdimot tayyorlash imkoni qolmoqda!\n\n"
+                f"**Buyurtmangizni 100% tasdiqlashga imkoningiz komilmi?**"
+            )
+        else:
+            second_confirmation_text = (
+                f"🔒 **Ikkinchi tasdiqlash bosqichi**\n\n"
+                f"⚠️ **Bepul buyurtmalar tugadi!** "
+                f"Siz allaqachon 1 marta bepul foydalangansiz.\n\n"
+                f"Bu buyurtma uchun **{pages * tariff_info['price_per_page']:,} so'm** to'lashingiz kerak.\n\n"
+                f"**Buyurtmangizni 100% tasdiqlashga imkoningiz komilmi?**"
+            )
     else:
         # Premium tariflar uchun
         tariff_info = TARIFFS[tariff_key]
@@ -685,14 +902,31 @@ async def confirm_final_order(callback: types.CallbackQuery, state: FSMContext):
     pages = data.get('pages', 0)
     
     if tariff_key == "START":
-        # Start tarifi uchun yakuniy xabar
-        final_text = (
-            f"🔒 **Yakuniy tasdiqlash:**\n\n"
-            f"Siz buyurtmani tasdiqladingiz, ishonch va xavfsizlik uchun uni yana tasdiqlashingizni "
-            f"va bu ishni o'zingiz onli ravishda bajarishingizni so'rayman.\n\n"
-            f"Agar hozir yana bir bor, **Ha✅**ni bossangiz taqdimot tayyorlash jarayoni boshlanadi.\n\n"
-            f"**Tanlang:**"
-        )
+        # Real bepul buyurtmalar sonini olish
+        free_orders = await get_user_free_orders_count(callback.from_user.id)
+        remaining_free = 1 - free_orders
+        
+        if remaining_free > 0:
+            final_text = (
+                f"🔒 **Yakuniy tasdiqlash:**\n\n"
+                f"Siz buyurtmani tasdiqladingiz, ishonch va xavfsizlik uchun uni yana tasdiqlashingizni "
+                f"va bu ishni o'zingiz onli ravishda bajarishingizni so'rayman.\n\n"
+                f"Bu sizning **{free_orders + 1}-chi** bepul buyurtmangiz bo'ladi.\n"
+                f"Agar hozir yana bir bor, **Ha✅**ni bossangiz taqdimot tayyorlash jarayoni boshlanadi.\n\n"
+                f"**Tanlang:**"
+            )
+        else:
+            tariff_info = TARIFFS[tariff_key]
+            total_price = pages * tariff_info['price_per_page']
+            final_text = (
+                f"🔒 **Yakuniy tasdiqlash:**\n\n"
+                f"Siz buyurtmani tasdiqladingiz, ishonch va xavfsizlik uchun uni yana tasdiqlashingizni "
+                f"va bu ishni o'zingiz onli ravishda bajarishingizni so'rayman.\n\n"
+                f"⚠️ **Bepul buyurtmalar tugadi!** "
+                f"Agar hozir yana bir bor, **Ha✅**ni bossangiz hisobingizdan "
+                f"**{total_price:,} so'm** mablag' yechib olaman.\n\n"
+                f"**Tanlang:**"
+            )
     else:
         # Premium tariflar uchun
         tariff_info = TARIFFS[tariff_key]
@@ -739,6 +973,99 @@ async def start_presentation_generation(callback: types.CallbackQuery, state: FS
     await callback.answer("🚀 Taqdimot yaratish boshlanmoqda...")
     
     data = await state.get_data()
+    tariff_key = data.get('tariff', '')
+    pages = data.get('pages', 0)
+    
+    # Barcha tariflar uchun balans tekshirish
+    tariff_info = TARIFFS[tariff_key]
+    total_price = pages * tariff_info['price_per_page']
+    
+    # START tarifi uchun bepul buyurtmalar tekshirish
+    if tariff_key == "START":
+        free_orders = await get_user_free_orders_count(callback.from_user.id)
+        remaining_free = 1 - free_orders
+        
+        # Agar bepul buyurtmalar tugagan bo'lsa, balansdan mablag' yechish
+        if remaining_free <= 0:
+            # Balansni tekshirish
+            balance = await get_user_balance(callback.from_user.id)
+            if balance['total_balance'] < total_price:
+                # Balans to'ldirish tugmalari
+                balance_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="💳 Balansni to'ldirish", callback_data="top_up_balance")],
+                    [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_menu")]
+                ])
+                
+                await callback.message.edit_text(
+                    f"❌ **Balans yetarli emas!**\n\n"
+                    f"Bu buyurtma uchun **{total_price:,} so'm** kerak.\n"
+                    f"Sizning balansingiz: **{balance['total_balance']:,} so'm**\n"
+                    f"Yetishmayotgan summa: **{total_price - balance['total_balance']:,} so'm**\n\n"
+                    f"💡 **Balansingizni to'ldiring va qaytadan urinib ko'ring!**",
+                    reply_markup=balance_keyboard,
+                    parse_mode="Markdown"
+                )
+                return
+            
+            # Balansdan mablag' yechish
+            success = await deduct_user_balance(callback.from_user.id, total_price)
+            if not success:
+                await callback.message.edit_text(
+                    "❌ **Balansdan mablag' yechishda xatolik!**\n\n"
+                    "Iltimos, qaytadan urinib ko'ring.",
+                    reply_markup=get_back_keyboard(),
+                    parse_mode="Markdown"
+                )
+                return
+            
+            # Tranzaksiya qo'shish
+            await add_transaction(
+                callback.from_user.id, 
+                total_price, 
+                'debit', 
+                f'START tarifi taqdimot uchun ({pages} sahifa)', 
+                None
+            )
+    else:
+        # Boshqa tariflar uchun balans tekshirish
+        balance = await get_user_balance(callback.from_user.id)
+        if balance['total_balance'] < total_price:
+            # Balans to'ldirish tugmalari
+            balance_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💳 Balansni to'ldirish", callback_data="top_up_balance")],
+                [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_menu")]
+            ])
+            
+            await callback.message.edit_text(
+                f"❌ **Balans yetarli emas!**\n\n"
+                f"Bu buyurtma uchun **{total_price:,} so'm** kerak.\n"
+                f"Sizning balansingiz: **{balance['total_balance']:,} so'm**\n"
+                f"Yetishmayotgan summa: **{total_price - balance['total_balance']:,} so'm**\n\n"
+                f"💡 **Balansingizni to'ldiring va qaytadan urinib ko'ring!**",
+                reply_markup=balance_keyboard,
+                parse_mode="Markdown"
+            )
+            return
+        
+        # Balansdan mablag' yechish
+        success = await deduct_user_balance(callback.from_user.id, total_price)
+        if not success:
+            await callback.message.edit_text(
+                "❌ **Balansdan mablag' yechishda xatolik!**\n\n"
+                "Iltimos, qaytadan urinib ko'ring.",
+                reply_markup=get_back_keyboard(),
+                parse_mode="Markdown"
+            )
+            return
+        
+        # Tranzaksiya qo'shish
+        await add_transaction(
+            callback.from_user.id, 
+            total_price, 
+            'debit', 
+            f'{tariff_info["name"]} taqdimot uchun ({pages} sahifa)', 
+            None
+        )
     
     # Buyurtma yaratish
     order_data = {
@@ -1073,7 +1400,7 @@ async def top_up_balance(callback: types.CallbackQuery):
     await callback.answer("💳 Balansni to'ldirish...")
     
     payment_text = (
-        "💳 **Balansni to'ldirish:**\n\n"
+        "💳 **Balansni to'ldirish:</b>\n\n"
         "Quyidagi usullar orqali balansingizni to'ldirishingiz mumkin:\n\n"
         "🔹 **Naqt to'lov:**\n"
         "• Uzcard: 5614682110523232\n"
@@ -1088,13 +1415,144 @@ async def top_up_balance(callback: types.CallbackQuery):
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📸 Chek yuborish", callback_data="send_receipt")],
+        [InlineKeyboardButton(text="📷 Chek yuborish", callback_data="send_receipt")],
         [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_balance")]
     ])
     
     if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
         await callback.message.edit_text(payment_text, reply_markup=keyboard, parse_mode="Markdown")
 
+@dp.callback_query(F.data == "send_receipt")
+async def send_receipt_menu(callback: types.CallbackQuery, state: FSMContext):
+    """Chek yuborish menyusi"""
+    await callback.answer("📷 Chek yuborish...")
+    
+    receipt_text = (
+        "📷 **Chek yuborish**\n\n"
+        "To'lov chekini yuboring:\n\n"
+        "📋 **Talablar:**\n"
+        "• Rasm aniq va o'qiladigan bo'lishi kerak\n"
+        "• To'lov summasi va vaqti ko'rinishi kerak\n"
+        "• Chek to'liq ko'rinishi kerak\n\n"
+        "Tez orada balansingiz to'ldiriladi"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_receipt")]
+    ])
+    
+    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
+        try:
+            await callback.message.edit_text(receipt_text, reply_markup=keyboard, parse_mode="Markdown")
+        except Exception:
+            await callback.message.answer(receipt_text, reply_markup=keyboard, parse_mode="Markdown")
+    else:
+        await callback.message.answer(receipt_text, reply_markup=keyboard, parse_mode="Markdown")
+    
+    await state.set_state(OnboardingStates.RECEIPT_FIRST)
+
+@dp.message(StateFilter(OnboardingStates.RECEIPT_FIRST), F.photo)
+async def process_first_receipt(message: types.Message, state: FSMContext):
+    """Birinchi chekni qayta ishlash"""
+    if not message.from_user:
+        return
+    
+    # Birinchi chekni saqlash
+    first_photo = message.photo[-1]
+    await state.update_data(first_receipt=first_photo.file_id)
+    
+    # Ikkinchi chek so'rash
+    await message.answer(
+        "Iltimos, haqiqiy chekni yuboring qaytadan!\n\n"
+        "📷 Chekni qayta yuboring:",
+        parse_mode="Markdown"
+    )
+    await state.set_state(OnboardingStates.RECEIPT_SECOND)
+
+@dp.message(StateFilter(OnboardingStates.RECEIPT_SECOND), F.photo)
+async def process_second_receipt(message: types.Message, state: FSMContext):
+    """Ikkinchi chekni qayta ishlash"""
+    if not message.from_user:
+        return
+    
+    # Ikkinchi chekni saqlash
+    second_photo = message.photo[-1]
+    data = await state.get_data()
+    first_receipt = data.get('first_receipt')
+    
+    # Admin guruhga yuborish
+    admin_group_id = int(os.getenv("ADMIN_GROUP_ID", "-1001234567890"))  # Admin guruh ID
+    
+    try:
+        # Bitta xabarda 2 ta chek yuborish
+        media_group = [
+            types.InputMediaPhoto(
+                media=first_receipt,
+                caption=f"📷 **To'lov cheklari**\n\n"
+                       f"👤 Foydalanuvchi: {message.from_user.full_name}\n"
+                       f"🆔 ID: {message.from_user.id}\n"
+                       f"📅 Vaqt: {format_time()}\n\n"
+                       f"📷 **Birinchi chek**",
+                parse_mode="Markdown"
+            ),
+            types.InputMediaPhoto(
+                media=second_photo.file_id,
+                caption="📷 **Ikkinchi chek**",
+                parse_mode="Markdown"
+            )
+        ]
+        
+        await bot.send_media_group(
+            chat_id=admin_group_id,
+            media=media_group
+        )
+        
+        # Qo'shimcha izoh yuborish
+        await bot.send_message(
+            chat_id=admin_group_id,
+            text=f"📋 **To'lov ma'lumotlari:**\n\n"
+                 f"👤 **Foydalanuvchi:** {message.from_user.full_name}\n"
+                 f"🆔 **ID:** {message.from_user.id}\n"
+                 f"📅 **Vaqt:** {format_time()}\n"
+                 f"📷 **Cheklar:** 2 ta rasm yuborildi\n\n"
+                 f"💡 **Eslatma:** To'lovni tekshirib, balansni to'ldiring",
+            parse_mode="Markdown"
+        )
+        
+        # Foydalanuvchiga javob
+        await message.answer(
+            "✅ **To'lovingiz tekshirib chiqilmoqda tez orada tasdiqlanadi**",
+            reply_markup=get_main_keyboard(),
+            parse_mode="Markdown"
+        )
+        
+        # Log qilish
+        await log_action(message.from_user.id, "receipt_sent", {
+            'first_receipt': first_receipt,
+            'second_receipt': second_photo.file_id,
+            'sent_to_group': admin_group_id
+        })
+        
+    except Exception as e:
+        await message.answer(
+            f"❌ **Chek yuborishda xatolik!**\n\n"
+            f"Xatolik: {str(e)}\n\n"
+            f"Qaytadan urinib ko'ring yoki @support_admin ga murojaat qiling.",
+            reply_markup=get_main_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    await state.set_state(OnboardingStates.MENU)
+
+@dp.callback_query(F.data == "cancel_receipt")
+async def cancel_receipt_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Chek yuborishni bekor qilish"""
+    await callback.message.edit_text(
+        "❌ **Chek yuborish bekor qilindi**",
+        parse_mode="Markdown"
+    )
+    await state.set_state(OnboardingStates.MENU)
+    await callback.answer()
 
 @dp.callback_query(F.data == "referral_link")
 async def get_referral_link(callback: types.CallbackQuery):
@@ -1104,19 +1562,29 @@ async def get_referral_link(callback: types.CallbackQuery):
     if not callback.from_user:
         return
     
+    # Referral statistikasini olish
+    referral_stats = await get_referral_stats(callback.from_user.id)
+    
+    # Referral bonuslarini olish
+    rewards = await get_referral_rewards()
+    
     # Referral link yaratish
     referral_link = f"https://t.me/preuz_bot?start=ref_{callback.from_user.id}"
     
     referral_text = (
         "👥 **Do'stlarni taklif qilish:**\n\n"
-        "Do'stlaringizni taklif qiling va har bir taklif uchun 1,000 so'm bonus oling!\n\n"
+        f"Do'stlaringizni taklif qiling va har bir taklif uchun {rewards['referrer_reward']:,} so'm bonus oling!\n\n"
         f"🔗 **Sizning taklif havolangiz:**\n"
         f"`{referral_link}`\n\n"
+        f"📊 **Joriy natijalar:**\n"
+        f"• Umumiy takliflar: {referral_stats['total_referrals']} ta\n"
+        f"• Tasdiqlangan: {referral_stats['confirmed_referrals']} ta\n"
+        f"• Jami bonus: {referral_stats['total_bonus']:,} so'm\n\n"
         "📋 **Qanday ishlaydi:**\n"
         "1. Havolani do'stlaringizga yuboring\n"
         "2. Do'stingiz bot orqali ro'yxatdan o'tadi\n"
-        "3. Sizga 1,000 so'm bonus qo'shiladi\n"
-        "4. Do'stingiz ham 500 so'm bonus oladi\n\n"
+        f"3. Sizga {rewards['referrer_reward']:,} so'm bonus qo'shiladi\n"
+        f"4. Do'stingiz ham {rewards['referred_reward']:,} so'm bonus oladi\n\n"
         "💡 **Maslahat:** Ko'proq do'st taklif qiling va ko'proq bonus oling!"
     )
     
@@ -1135,20 +1603,19 @@ async def show_referral_stats(callback: types.CallbackQuery):
     """Referral statistikasini ko'rsatish"""
     await callback.answer("📊 Statistikani ko'rish...")
     
-    # Namuna statistikalar
-    total_referrals = 10
-    active_referrals = 8
-    total_bonus = 10000
-    pending_bonus = 2000
+    if not callback.from_user:
+        return
+    
+    # Real referral statistikasini olish
+    referral_stats = await get_referral_stats(callback.from_user.id)
     
     stats_text = (
         "📊 **Referral statistikasi:**\n\n"
-        f"👥 **Umumiy takliflar:** {total_referrals} ta\n"
-        f"✅ **Faol takliflar:** {active_referrals} ta\n"
-        f"💰 **Jami bonus:** {total_bonus:,} so'm\n"
-        f"⏳ **Kutilayotgan bonus:** {pending_bonus:,} so'm\n\n"
-        f"🏆 **Eng ko'p taklif qilgan:** 5 ta (bu oy)\n"
-        f"📈 **O'sish sur'ati:** +2 ta (o'tgan hafta)\n\n"
+        f"👥 **Umumiy takliflar:** {referral_stats['total_referrals']} ta\n"
+        f"✅ **Tasdiqlangan:** {referral_stats['confirmed_referrals']} ta\n"
+        f"⏳ **Kutilayotgan:** {referral_stats['pending_referrals']} ta\n"
+        f"💰 **Jami bonus:** {referral_stats['total_bonus']:,} so'm\n"
+        f"📅 **Bu oy:** {referral_stats['this_month']} ta taklif\n\n"
         f"💡 **Maslahat:** Har hafta kamida 3 ta do'st taklif qiling!"
     )
     
@@ -1161,6 +1628,62 @@ async def show_referral_stats(callback: types.CallbackQuery):
         await callback.message.edit_text(stats_text, reply_markup=keyboard, parse_mode="Markdown")
 
 
+@dp.callback_query(F.data == "top_up_balance")
+async def top_up_balance_handler(callback: types.CallbackQuery):
+    """Balans to'ldirish"""
+    await callback.answer("💳 Balans to'ldirish...")
+    
+    if not callback.from_user:
+        return
+    
+    balance_text = (
+        "💳 **Balans to'ldirish:**\n\n"
+        "💰 **To'lov usullari:**\n"
+        "• Naqd pul (admin orqali)\n"
+        "• Bank orqali o'tkazma\n"
+        "• Karta orqali to'lov\n\n"
+        "📞 **To'lov uchun admin bilan bog'laning:**\n"
+        "• Telegram: @preuzadmin\n"
+        "• Telefon: +998 90 123 45 67\n\n"
+        "💡 **To'lov qilgandan keyin admin sizning balansingizni to'ldiradi!**"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👨‍💼 Admin bilan bog'lanish", url="https://t.me/preuzadmin")],
+        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_balance")]
+    ])
+    
+    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
+        await callback.message.edit_text(balance_text, reply_markup=keyboard, parse_mode="Markdown")
+
+@dp.callback_query(F.data == "back_to_menu")
+async def back_to_menu_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Asosiy menyuga qaytish"""
+    await callback.answer("🏠 Asosiy menyuga qaytish...")
+    await state.set_state(OnboardingStates.MENU)
+    
+    # Asosiy menyu matnini yuborish
+    menu_text = (
+        "🎉 **Xush kelibsiz!**\n\n"
+        "🤖 **@preuz_bot** - professional taqdimotlar yaratish uchun!\n\n"
+        "📋 **Xizmatlar:**\n"
+        "• 🎯 Taqdimot yaratish\n"
+        "• 📊 Hisobot tayyorlash\n"
+        "• 💰 Balans boshqarish\n"
+        "• 👥 Do'stlarni taklif qilish\n\n"
+        "🚀 **Boshlash uchun tugmalardan birini tanlang!**"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎯 Taqdimot yaratish", callback_data="create_presentation")],
+        [InlineKeyboardButton(text="💰 Balansim", callback_data="my_balance")],
+        [InlineKeyboardButton(text="👥 Do'stlarni taklif qilish", callback_data="referral_link")],
+        [InlineKeyboardButton(text="📞 Aloqa", callback_data="contact_us")]
+    ])
+    
+    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
+        await callback.message.edit_text(menu_text, reply_markup=keyboard, parse_mode="Markdown")
+
 @dp.callback_query(F.data == "back_to_balance")
 async def back_to_balance(callback: types.CallbackQuery):
     """Balans sahifasiga qaytish"""
@@ -1169,18 +1692,16 @@ async def back_to_balance(callback: types.CallbackQuery):
     if not callback.from_user:
         return
     
-    # Balans ma'lumotlari (namuna)
-    total_balance = 30000
-    cash_payment = 20000
-    referrals = 10
-    referral_bonus = 10000
+    # Real balans ma'lumotlarini olish
+    balance = await get_user_balance(callback.from_user.id)
+    referral_stats = await get_referral_stats(callback.from_user.id)
     
     balance_text = (
         f"💰 **Sizning balansingiz:**\n\n"
-        f"💳 **Umumiy balans:** {total_balance:,} so'm\n\n"
+        f"💳 **Umumiy balans:** {balance['total_balance']:,} so'm\n\n"
         f"📊 **Balans tafsilotlari:**\n"
-        f"• Naqt orqali to'langan: {cash_payment:,} so'm\n"
-        f"• {referrals} ta taklif uchun: {referral_bonus:,} so'm"
+        f"• Naqt orqali to'langan: {balance['cash_balance']:,} so'm\n"
+        f"• {referral_stats['confirmed_referrals']} ta taklif uchun: {balance['referral_balance']:,} so'm"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1219,13 +1740,16 @@ async def send_receipt(callback: types.CallbackQuery):
 
 
 async def generate_presentation_task(user_tg_id: int, order_id: int, topic: str, pages: int, tariff: str):
-    """Taqdimot yaratish vazifasi"""
+    """Taqdimot yaratish vazifasi - yangi struktura"""
     try:
         # OpenAI dan kontent olish
         content = await generate_presentation_content(topic, pages)
+        print(f"ChatGPT dan kontent olindi: {content}")
         
-        # PowerPoint fayl yaratish
-        file_path = await create_presentation_file(content, topic, user_tg_id)
+        # PowerPoint fayl yaratish - yangi funksiya
+        from pptx_generator import create_presentation_file
+        files = await create_presentation_file(topic, pages, tariff)
+        file_path = files[0]  # PowerPoint fayl birinchi o'rinda
         
         # Ma'lumotlar bazasiga saqlash
         presentation_data = {
@@ -1242,17 +1766,22 @@ async def generate_presentation_task(user_tg_id: int, order_id: int, topic: str,
         await update_order_status(order_id, 'completed')
         
         # Foydalanuvchiga fayl yuborish
-        with open(file_path, 'rb') as file:
-            await bot.send_document(
-                chat_id=user_tg_id,
-                document=file,
-                caption=f"🎉 **Taqdimot tayyor!**\n\n"
-                       f"📊 **Mavzu:** {topic}\n"
-                       f"📄 **Sahifalar:** {pages}\n"
-                       f"💰 **Tarif:** {TARIFFS[tariff]['name']}\n\n"
-                       f"✅ Fayl muvaffaqiyatli yaratildi!",
-                parse_mode="Markdown"
-            )
+        from aiogram.types import FSInputFile
+        
+        input_file = FSInputFile(file_path, filename=f"taqdimot_{topic.replace(' ', '_')}.pptx")
+        await bot.send_document(
+            chat_id=user_tg_id,
+            document=input_file,
+            caption=f"🎉 **Taqdimot tayyor!**\n\n"
+                   f"📊 **Mavzu:** {topic}\n"
+                   f"📄 **Sahifalar:** {pages}\n"
+                   f"💰 **Tarif:** {TARIFFS[tariff]['name']}\n\n"
+                   f"✅ Fayl muvaffaqiyatli yaratildi!",
+            parse_mode="Markdown"
+        )
+        
+        # Admin guruhga taqdimot haqida xabar yuborish
+        await send_presentation_to_admin_group(user_tg_id, topic, pages, tariff, file_path)
         
         # Log yaratish
         await log_action(user_tg_id, "presentation_generated", {
@@ -1262,13 +1791,26 @@ async def generate_presentation_task(user_tg_id: int, order_id: int, topic: str,
             'file_path': file_path
         })
         
+        # Barcha fayllarni o'chirish (foydalanuvchiga yuborilgandan keyin)
+        try:
+            for file_path in files:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logging.info(f"File deleted after sending: {file_path}")
+        except Exception as e:
+            logging.error(f"Error deleting files: {e}")
+        
     except Exception as e:
         # Xatolik holatida foydalanuvchiga xabar berish
+        print(f"Taqdimot yaratishda xatolik: {e}")
+        logging.error(f"Taqdimot yaratishda xatolik: {e}")
+        
         await bot.send_message(
             chat_id=user_tg_id,
             text=f"❌ **Xatolik yuz berdi!**\n\n"
                  f"Taqdimot yaratishda muammo bo'ldi. Iltimos, qaytadan urinib ko'ring.\n\n"
-                 f"📞 Agar muammo davom etsa, qo'llab-quvvatlashga murojaat qiling.",
+                 f"📞 Agar muammo davom etsa, qo'llab-quvvatlashga murojaat qiling.\n\n"
+                 f"🔍 Xatolik tafsiloti: {str(e)[:100]}...",
             parse_mode="Markdown"
         )
         
@@ -1284,11 +1826,640 @@ async def generate_presentation_task(user_tg_id: int, order_id: int, topic: str,
         await update_order_status(order_id, 'failed')
 
 
+# Admin funksiyalari
+@dp.message(StateFilter(OnboardingStates.MENU), F.text == "📢 Ommaviy xabar")
+async def broadcast_menu(message: types.Message, state: FSMContext):
+    """Ommaviy xabar menyusi"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    # Bekor qilish tugmasi
+    cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_broadcast")]
+    ])
+    
+    await message.answer(
+        "📢 **Ommaviy xabar yuborish**\n\n"
+        "Yubormoqchi bo'lgan xabaringizni yuboring:",
+        parse_mode="Markdown",
+        reply_markup=cancel_keyboard
+    )
+    await state.set_state(OnboardingStates.BROADCAST_MESSAGE)
+
+# Ommaviy xabar yuborish funksiyasi
+@dp.message(StateFilter(OnboardingStates.BROADCAST_MESSAGE))
+async def process_broadcast_message(message: types.Message, state: FSMContext):
+    """Ommaviy xabarni qayta ishlash"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    try:
+        # Barcha foydalanuvchilarni olish
+        users = await get_all_users()
+        success_count = 0
+        failed_count = 0
+        
+        # Xabarni yuborish
+        for user in users:
+            try:
+                # Agar xabar matn bo'lsa
+                if message.text:
+                    await bot.send_message(
+                        chat_id=user['tg_id'],
+                        text=message.text,
+                        parse_mode="Markdown" if "**" in message.text else None
+                    )
+                # Agar xabar forward qilingan bo'lsa
+                elif message.forward_from or message.forward_from_chat:
+                    await bot.forward_message(
+                        chat_id=user['tg_id'],
+                        from_chat_id=message.chat.id,
+                        message_id=message.message_id
+                    )
+                # Agar xabar rasm bo'lsa
+                elif message.photo:
+                    await bot.send_photo(
+                        chat_id=user['tg_id'],
+                        photo=message.photo[-1].file_id,
+                        caption=message.caption if message.caption else None
+                    )
+                # Agar xabar video bo'lsa
+                elif message.video:
+                    await bot.send_video(
+                        chat_id=user['tg_id'],
+                        video=message.video.file_id,
+                        caption=message.caption if message.caption else None
+                    )
+                # Agar xabar hujjat bo'lsa
+                elif message.document:
+                    await bot.send_document(
+                        chat_id=user['tg_id'],
+                        document=message.document.file_id,
+                        caption=message.caption if message.caption else None
+                    )
+                # Boshqa holatda
+                else:
+                    await bot.copy_message(
+                        chat_id=user['tg_id'],
+                        from_chat_id=message.chat.id,
+                        message_id=message.message_id
+                    )
+                
+                success_count += 1
+                await asyncio.sleep(0.1)  # Rate limiting uchun
+            except (TelegramBadRequest, Exception) as e:
+                failed_count += 1
+                logging.error(f"Xabar yuborishda xatolik {user['tg_id']}: {e}")
+        
+        await message.answer(
+            f"📢 **Ommaviy xabar yuborildi!**\n\n"
+            f"✅ Muvaffaqiyatli: {success_count} ta\n"
+            f"❌ Bloklaganlar: {failed_count} ta\n"
+            f"📊 Jami: {len(users)} ta foydalanuvchi",
+            reply_markup=get_admin_keyboard(),
+            parse_mode="Markdown"
+        )
+        
+        # Log qilish
+        await log_action(message.from_user.id, "admin_broadcast_sent", {
+            'success_count': success_count,
+            'failed_count': failed_count,
+            'total_users': len(users)
+        })
+        
+    except Exception as e:
+        await message.answer(
+            f"❌ **Xabar yuborishda xatolik!**\n\n"
+            f"Xatolik: {str(e)}",
+            reply_markup=get_admin_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    await state.set_state(OnboardingStates.MENU)
+
+# Bekor qilish tugmasi
+@dp.callback_query(F.data == "cancel_broadcast")
+async def cancel_broadcast_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Ommaviy xabarni bekor qilish"""
+    if not await is_admin(callback.from_user.id):
+        return
+    
+    await callback.message.edit_text(
+        "❌ **Ommaviy xabar bekor qilindi**",
+        parse_mode="Markdown"
+    )
+    await state.set_state(OnboardingStates.MENU)
+    await callback.answer()
+
+# Bir kishiga xabar bekor qilish
+@dp.callback_query(F.data == "cancel_user_message")
+async def cancel_user_message_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Bir kishiga xabarni bekor qilish"""
+    if not await is_admin(callback.from_user.id):
+        return
+    
+    await callback.message.edit_text(
+        "❌ **Bir kishiga xabar bekor qilindi**",
+        parse_mode="Markdown"
+    )
+    await state.set_state(OnboardingStates.MENU)
+    await callback.answer()
+
+# Bir kishiga xabar yuborish
+@dp.message(StateFilter(OnboardingStates.MENU), F.text == "💬 Bir kishiga xabar")
+async def send_to_user_menu(message: types.Message, state: FSMContext):
+    """Bir kishiga xabar menyusi"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    # Bekor qilish tugmasi
+    cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_user_message")]
+    ])
+    
+    await message.answer(
+        "💬 **Bir kishiga xabar yuborish**\n\n"
+        "Foydalanuvchi ID sini kiriting:",
+        parse_mode="Markdown",
+        reply_markup=cancel_keyboard
+    )
+    await state.set_state(OnboardingStates.USER_ID_INPUT)
+
+@dp.message(StateFilter(OnboardingStates.USER_ID_INPUT))
+async def process_user_id(message: types.Message, state: FSMContext):
+    """Foydalanuvchi ID ni qayta ishlash"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    try:
+        user_id = int(message.text.strip())
+        user = await get_user_by_tg_id(user_id)
+        
+        if user:
+            await state.update_data(target_user_id=user_id)
+            
+            # Bekor qilish tugmasi
+            cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_user_message")]
+            ])
+            
+            await message.answer(
+                f"✅ **Foydalanuvchi topildi!**\n\n"
+                f"👤 Ism: {user.get('full_name', 'Noma\'lum')}\n"
+                f"📱 Username: @{user.get('username', 'Noma\'lum')}\n"
+                f"📅 Qo'shilgan: {user.get('created_at', 'Noma\'lum')}\n\n"
+                f"Yubormoqchi bo'lgan xabaringizni yuboring:",
+                parse_mode="Markdown",
+                reply_markup=cancel_keyboard
+            )
+            await state.set_state(OnboardingStates.USER_MESSAGE)
+        else:
+            await message.answer(
+                "❌ **Foydalanuvchi topilmadi!**\n\n"
+                "To'g'ri ID kiriting yoki qaytadan urinib ko'ring:",
+                reply_markup=get_admin_keyboard()
+            )
+            await state.set_state(OnboardingStates.MENU)
+            
+    except ValueError:
+        await message.answer(
+            "❌ **Noto'g'ri ID format!**\n\n"
+            "Faqat raqam kiriting:",
+            reply_markup=get_admin_keyboard()
+        )
+        await state.set_state(OnboardingStates.MENU)
+
+@dp.message(StateFilter(OnboardingStates.USER_MESSAGE))
+async def process_user_message(message: types.Message, state: FSMContext):
+    """Foydalanuvchiga xabarni yuborish"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    data = await state.get_data()
+    target_user_id = data.get('target_user_id')
+    
+    try:
+        # Agar xabar matn bo'lsa
+        if message.text:
+            await bot.send_message(
+                chat_id=target_user_id,
+                text=message.text,
+                parse_mode="Markdown" if "**" in message.text else None
+            )
+        # Agar xabar forward qilingan bo'lsa
+        elif message.forward_from or message.forward_from_chat:
+            await bot.forward_message(
+                chat_id=target_user_id,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id
+            )
+        # Agar xabar rasm bo'lsa
+        elif message.photo:
+            await bot.send_photo(
+                chat_id=target_user_id,
+                photo=message.photo[-1].file_id,
+                caption=message.caption if message.caption else None
+            )
+        # Agar xabar video bo'lsa
+        elif message.video:
+            await bot.send_video(
+                chat_id=target_user_id,
+                video=message.video.file_id,
+                caption=message.caption if message.caption else None
+            )
+        # Agar xabar hujjat bo'lsa
+        elif message.document:
+            await bot.send_document(
+                chat_id=target_user_id,
+                document=message.document.file_id,
+                caption=message.caption if message.caption else None
+            )
+        # Boshqa holatda
+        else:
+            await bot.copy_message(
+                chat_id=target_user_id,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id
+            )
+        
+        await message.answer(
+            f"✅ **Xabar muvaffaqiyatli yuborildi!**\n\n"
+            f"👤 Foydalanuvchi ID: {target_user_id}",
+            reply_markup=get_admin_keyboard(),
+            parse_mode="Markdown"
+        )
+        
+        # Log qilish
+        await log_action(message.from_user.id, "admin_message_sent", {
+            'target_user_id': target_user_id,
+            'message_type': 'text' if message.text else 'media'
+        })
+        
+    except Exception as e:
+        await message.answer(
+            f"❌ **Xabar yuborishda xatolik!**\n\n"
+            f"Xatolik: {str(e)}",
+            reply_markup=get_admin_keyboard(),
+            parse_mode="Markdown"
+        )
+    
+    await state.set_state(OnboardingStates.MENU)
+
+@dp.message(StateFilter(OnboardingStates.MENU), F.text == "📊 Statistika")
+async def admin_statistics(message: types.Message):
+    """Admin statistika"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    try:
+        # Barcha foydalanuvchilarni olish
+        users = await get_all_users()
+        
+        # Statistika hisoblash
+        total_users = len(users)
+        active_users = 0
+        blocked_users = 0
+        
+        for user in users:
+            try:
+                # Foydalanuvchi mavjudligini tekshirish
+                await bot.get_chat(user['tg_id'])
+                active_users += 1
+            except TelegramBadRequest:
+                blocked_users += 1
+            except Exception:
+                blocked_users += 1
+        
+        current_time = format_time()
+        stats_text = (
+            f"📊 **Umumiy statistika**\n\n"
+            f"👥 **Jami foydalanuvchilar:** {total_users:,}\n"
+            f"✅ **Faol foydalanuvchilar:** {active_users:,}\n"
+            f"🚫 **Blok qilinganlar:** {blocked_users:,}\n"
+            f"📈 **Faollik darajasi:** {(active_users/total_users*100):.1f}%\n\n"
+            f"🕐 **Oxirgi yangilanish:** {current_time}"
+        )
+        
+        await message.answer(stats_text, parse_mode="Markdown")
+        
+    except Exception as e:
+        await message.answer(
+            f"❌ **Statistika olishda xatolik!**\n\n"
+            f"Xatolik: {str(e)}",
+            parse_mode="Markdown"
+        )
+
+@dp.message(StateFilter(OnboardingStates.MENU), F.text == "💰 Balans boshqarish")
+async def balance_management_menu(message: types.Message, state: FSMContext):
+    """Balans boshqarish menyusi"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    # Bekor qilish tugmasi
+    cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_balance")]
+    ])
+    
+    await message.answer(
+        "💰 **Balans boshqarish**\n\n"
+        "Foydalanuvchi ID sini kiriting:",
+        parse_mode="Markdown",
+        reply_markup=cancel_keyboard
+    )
+    await state.set_state(OnboardingStates.BALANCE_USER_ID)
+
+@dp.message(StateFilter(OnboardingStates.BALANCE_USER_ID))
+async def process_balance_user_id(message: types.Message, state: FSMContext):
+    """Balans boshqarish uchun foydalanuvchi ID ni qayta ishlash"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    try:
+        user_id = int(message.text.strip())
+        user = await get_user_by_tg_id(user_id)
+        
+        if user:
+            balance = await get_user_balance(user_id)
+            await state.update_data(target_user_id=user_id)
+            
+            # Balans boshqarish tugmalari
+            balance_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="➕ Balans qo'shish", callback_data="add_balance")],
+                [InlineKeyboardButton(text="➖ Balans kamaytirish", callback_data="subtract_balance")],
+                [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_balance")]
+            ])
+            
+            await message.answer(
+                f"👤 **Foydalanuvchi:** {user.get('full_name', 'Noma\'lum')}\n"
+                f"📱 **Username:** @{user.get('username', 'Noma\'lum')}\n"
+                f"💳 **Joriy balans:** {balance['total_balance']:,} so'm\n\n"
+                f"Balans boshqarish uchun amalni tanlang:",
+                parse_mode="Markdown",
+                reply_markup=balance_keyboard
+            )
+            await state.set_state(OnboardingStates.BALANCE_ACTION)
+        else:
+            await message.answer(
+                "❌ **Foydalanuvchi topilmadi!**\n\n"
+                "To'g'ri ID kiriting yoki qaytadan urinib ko'ring:",
+                reply_markup=get_admin_keyboard()
+            )
+            await state.set_state(OnboardingStates.MENU)
+            
+    except ValueError:
+        await message.answer(
+            "❌ **Noto'g'ri ID format!**\n\n"
+            "Faqat raqam kiriting:",
+            reply_markup=get_admin_keyboard()
+        )
+        await state.set_state(OnboardingStates.MENU)
+
+@dp.callback_query(F.data.in_(["add_balance", "subtract_balance"]))
+async def balance_action_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Balans amalini tanlash"""
+    if not await is_admin(callback.from_user.id):
+        return
+    
+    action = "qo'shish" if callback.data == "add_balance" else "kamaytirish"
+    emoji = "➕" if callback.data == "add_balance" else "➖"
+    
+    await callback.message.edit_text(
+        f"{emoji} **Balans {action}**\n\n"
+        f"Qancha so'm {action}ni kiriting:",
+        parse_mode="Markdown"
+    )
+    
+    await state.update_data(balance_action=callback.data)
+    await state.set_state(OnboardingStates.BALANCE_AMOUNT)
+    await callback.answer()
+
+@dp.message(StateFilter(OnboardingStates.BALANCE_AMOUNT))
+async def process_balance_amount(message: types.Message, state: FSMContext):
+    """Balans miqdorini qayta ishlash"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    try:
+        amount = int(message.text.strip())
+        if amount <= 0:
+            raise ValueError("Miqdor musbat bo'lishi kerak")
+        
+        data = await state.get_data()
+        user_id = data.get('target_user_id')
+        action = data.get('balance_action')
+        
+        if action == "add_balance":
+            await update_user_balance(user_id, amount, 'cash')
+            action_text = "qo'shildi"
+            emoji = "✅"
+        else:
+            success = await deduct_user_balance(user_id, amount)
+            if success:
+                action_text = "kamaytirildi"
+                emoji = "✅"
+            else:
+                action_text = "kamaytirishda xatolik (yetarli mablag' yo'q)"
+                emoji = "❌"
+        
+        # Balansni yangilash
+        balance = await get_user_balance(user_id)
+        user = await get_user_by_tg_id(user_id)
+        
+        await message.answer(
+            f"{emoji} **Balans muvaffaqiyatli {action_text}!**\n\n"
+            f"👤 **Foydalanuvchi:** {user.get('full_name', 'Noma\'lum')}\n"
+            f"💰 **Yangi balans:** {balance['total_balance']:,} so'm\n"
+            f"💳 **Naqt balans:** {balance['cash_balance']:,} so'm\n"
+            f"🎁 **Referral balans:** {balance['referral_balance']:,} so'm",
+            reply_markup=get_admin_keyboard(),
+            parse_mode="Markdown"
+        )
+        
+        # Log qilish
+        await log_action(message.from_user.id, "admin_balance_change", {
+            'target_user_id': user_id,
+            'action': action,
+            'amount': amount,
+            'new_balance': balance['total_balance']
+        })
+        
+    except ValueError as e:
+        await message.answer(
+            f"❌ **Noto'g'ri miqdor!**\n\n"
+            f"Xatolik: {str(e)}\n"
+            f"Faqat musbat raqam kiriting:",
+            reply_markup=get_admin_keyboard()
+        )
+    
+    await state.set_state(OnboardingStates.MENU)
+
+# Balans boshqarish bekor qilish
+@dp.callback_query(F.data == "cancel_balance")
+async def cancel_balance_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Balans boshqarishni bekor qilish"""
+    if not await is_admin(callback.from_user.id):
+        return
+    
+    await callback.message.edit_text(
+        "❌ **Balans boshqarish bekor qilindi**",
+        parse_mode="Markdown"
+    )
+    await state.set_state(OnboardingStates.MENU)
+    await callback.answer()
+
+@dp.message(StateFilter(OnboardingStates.MENU), F.text == "⚙️ Referral sozlamalari")
+async def referral_settings_menu(message: types.Message):
+    """Referral sozlamalari menyusi"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    # Hozirgi referral sozlamalari
+    rewards = await get_referral_rewards()
+    
+    current_settings = (
+        "⚙️ **Referral sozlamalari**\n\n"
+        "💰 **Hozirgi bonuslar:**\n"
+        f"• Taklif qilgan: {rewards['referrer_reward']:,} so'm\n"
+        f"• Taklif qilingan: {rewards['referred_reward']:,} so'm\n\n"
+        "📝 **Sozlash uchun:**\n"
+        "Quyidagi formatda yuboring:\n"
+        "`referral: taklif_qilgan: 1500, taklif_qilingan: 700`"
+    )
+    
+    await message.answer(
+        current_settings,
+        parse_mode="Markdown"
+    )
+
+@dp.message(F.text == "🧪 ChatGPT Test")
+async def test_chatgpt_handler(message: types.Message, state: FSMContext):
+    """ChatGPT API test - mavzu so'rash"""
+    await message.answer(
+        "🧪 **ChatGPT API Test**\n\n"
+        "📝 **Test uchun mavzu kiriting:**\n\n"
+        "Masalan: 'O'zbekiston tarixi', 'Texnologiya', 'Biznes' va h.k.\n\n"
+        "Mavzuni yuboring va men ChatGPT API dan foydalanib test qilib beraman!",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+    await state.set_state(OnboardingStates.TEST_TOPIC)
+
+@dp.message(StateFilter(OnboardingStates.TEST_TOPIC))
+async def process_test_topic(message: types.Message, state: FSMContext):
+    """Test mavzusini qabul qilish va test qilish"""
+    if not message.text:
+        await message.answer("❌ **Iltimos, matn ko'rinishida mavzu yuboring!**")
+        return
+    
+    topic = message.text.strip()
+    await message.answer("🧪 **ChatGPT API test boshlanmoqda...**\n\n⏳ Kuting...")
+    
+    try:
+        # Test kontent yaratish
+        print(f"Test kontent yaratilmoqda: '{topic}'")
+        test_content = await generate_presentation_content(topic, 3)
+        
+        # Natijani ko'rsatish
+        result_text = "✅ **ChatGPT API test natijasi:**\n\n"
+        
+        if OPENAI_API_KEY:
+            result_text += "🤖 **Real ChatGPT API** ishlaydi!\n\n"
+        else:
+            result_text += "🧪 **Test rejimi** - API key topilmadi\n\n"
+        
+        result_text += f"📊 **Mavzu:** {topic}\n"
+        result_text += f"📄 **Sahifalar:** {len(test_content['slides'])}\n\n"
+        
+        result_text += "📋 **Yaratilgan sahifalar:**\n"
+        for i, slide in enumerate(test_content['slides']):  # Barcha sahifalarni ko'rsatish
+            result_text += f"\n**{i+1}. {slide['title']}**\n"
+            for j, content in enumerate(slide['content']):  # Barcha fikrlarni ko'rsatish
+                result_text += f"• {content}\n"
+        
+        await message.answer(
+            result_text,
+            reply_markup=get_admin_keyboard(),
+            parse_mode="Markdown"
+        )
+        
+        # State ni tozalash
+        await state.set_state(OnboardingStates.MENU)
+        
+    except Exception as e:
+        await message.answer(
+            f"❌ **Test xatoligi:**\n\n{str(e)}\n\n"
+            "Iltimos, qaytadan urinib ko'ring.",
+            reply_markup=get_admin_keyboard(),
+            parse_mode="Markdown"
+        )
+        await state.set_state(OnboardingStates.MENU)
+
+@dp.message(StateFilter(OnboardingStates.MENU), F.text == "🏠 Asosiy menyu")
+async def back_to_main_menu(message: types.Message):
+    """Asosiy menyuga qaytish"""
+    await message.answer(
+        "🏠 **Asosiy menyu**\n\n"
+        "Quyidagi tugmalardan birini tanlang:",
+        reply_markup=get_main_keyboard(),
+        parse_mode="Markdown"
+    )
+
+# Referral sozlamalarini qabul qilish
+@dp.message(StateFilter(OnboardingStates.MENU), F.text.regexp(r'^referral:\s*taklif_qilgan:\s*(\d+),\s*taklif_qilingan:\s*(\d+)$'))
+async def process_referral_settings(message: types.Message):
+    """Referral sozlamalarini qabul qilish"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    try:
+        # Matnni parse qilish
+        text = message.text.strip()
+        parts = text.split(',')
+        
+        referrer_amount = int(parts[0].split(':')[2].strip())
+        referred_amount = int(parts[1].split(':')[1].strip())
+        
+        # Referral bonuslarini yangilash
+        success = await update_referral_rewards(referrer_amount, referred_amount)
+        
+        if success:
+            await message.answer(
+                f"✅ **Referral sozlamalari yangilandi!**\n\n"
+                f"💰 **Yangi bonuslar:**\n"
+                f"• Taklif qilgan: {referrer_amount:,} so'm\n"
+                f"• Taklif qilingan: {referred_amount:,} so'm\n\n"
+                f"🔄 Endi yangi referrallar uchun bu bonuslar ishlatiladi.",
+                parse_mode="Markdown"
+            )
+            
+            # Log qilish
+            await log_action(message.from_user.id, "admin_referral_settings_changed", {
+                'referrer_reward': referrer_amount,
+                'referred_reward': referred_amount
+            })
+        else:
+            await message.answer(
+                "❌ **Sozlamalarni yangilashda xatolik!**\n\n"
+                "Iltimos, qaytadan urinib ko'ring.",
+                parse_mode="Markdown"
+            )
+            
+    except Exception as e:
+        await message.answer(
+            f"❌ **Noto'g'ri format!**\n\n"
+            f"To'g'ri format: `referral: taklif_qilgan: 1500, taklif_qilingan: 700`\n\n"
+            f"Xatolik: {str(e)}",
+            parse_mode="Markdown"
+        )
+
+
 # Error handler
 @dp.error()
 async def error_handler(event, **kwargs):
     """Xatoliklar bilan ishlash"""
     import logging
+    logging.error(f"Bot xatoligi: {event}")
+    print(f"Bot xatoligi: {event}")
+    print(f"Xatolik tafsilotlari: {kwargs}")
     logger = logging.getLogger(__name__)
     
     # Exception'ni to'g'ri olish
@@ -1313,3 +2484,18 @@ async def error_handler(event, **kwargs):
             )
         except:
             pass
+
+
+async def main():
+    """Asosiy funksiya"""
+    print("Bot ishga tushmoqda...")
+    
+    # Database ni ishga tushirish
+    await init_db()
+    
+    # Bot ni ishga tushirish
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
