@@ -2004,11 +2004,15 @@ async def process_user_id(message: types.Message, state: FSMContext):
                 [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_user_message")]
             ])
             
+            full_name = user.get('full_name', 'Noma\'lum')
+            username = user.get('username', 'Noma\'lum')
+            created_at = user.get('created_at', 'Noma\'lum')
+            
             await message.answer(
                 f"✅ **Foydalanuvchi topildi!**\n\n"
-                f"👤 Ism: {user.get('full_name', 'Noma\'lum')}\n"
-                f"📱 Username: @{user.get('username', 'Noma\'lum')}\n"
-                f"📅 Qo'shilgan: {user.get('created_at', 'Noma\'lum')}\n\n"
+                f"👤 Ism: {full_name}\n"
+                f"📱 Username: @{username}\n"
+                f"📅 Qo'shilgan: {created_at}\n\n"
                 f"Yubormoqchi bo'lgan xabaringizni yuboring:",
                 parse_mode="Markdown",
                 reply_markup=cancel_keyboard
