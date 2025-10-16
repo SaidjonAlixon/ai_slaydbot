@@ -1,14 +1,21 @@
 import sqlite3
 import asyncio
 import aiosqlite
+import os
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-DATABASE_PATH = "bot.db"
+# Railway'da persistent volume, local'da oddiy fayl
+DATABASE_PATH = os.getenv("DATABASE_PATH", "bot.db")
 
 async def init_db():
     """Ma'lumotlar bazasini ishga tushirish"""
     
+    # Railway'da persistent volume uchun papka yaratish
+    if DATABASE_PATH != "bot.db":
+        os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+    
+    # SQLite ishlatish (Railway'da ham)
     async with aiosqlite.connect(DATABASE_PATH) as db:
         # Users jadvali
         await db.execute("""
