@@ -81,19 +81,20 @@ async def main():
         
         print("Bot polling rejimida ishga tushmoqda...")
         
-        # FastAPI server va bot polling'ni parallel ishga tushirish
-        import threading
+        # Bot polling'ni background task sifatida ishga tushirish
+        async def run_bot_polling():
+            await dp.start_polling(bot)
         
-        # Bot polling'ni alohida thread'da ishga tushirish
-        def run_bot():
-            asyncio.run(dp.start_polling(bot))
-        
-        bot_thread = threading.Thread(target=run_bot, daemon=True)
-        bot_thread.start()
+        # Bot polling'ni background task sifatida ishga tushirish
+        bot_task = asyncio.create_task(run_bot_polling())
         
         # FastAPI server'ni ishga tushirish
         port = int(os.getenv("PORT", 8000))
-        uvicorn.run(app, host="0.0.0.0", port=port)
+        config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+        server = uvicorn.Server(config)
+        
+        # FastAPI server va bot polling'ni parallel ishga tushirish
+        await asyncio.gather(server.serve(), bot_task)
         
     except Exception as e:
         logger.error(f"Bot ishga tushishda xatolik: {e}")
