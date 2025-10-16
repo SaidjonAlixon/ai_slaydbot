@@ -2,6 +2,9 @@ import os
 import logging
 import asyncio
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+import uvicorn
 from bot import dp, bot
 from database import init_db
 
@@ -17,6 +20,22 @@ logger = logging.getLogger(__name__)
 
 # Environment o'zgaruvchilar
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+# FastAPI app yaratish
+app = FastAPI(title="Telegram Bot API", version="1.0.0")
+
+@app.get("/health")
+async def health_check():
+    """Healthcheck endpoint Railway uchun"""
+    return JSONResponse(
+        status_code=200,
+        content={"status": "healthy", "service": "telegram-bot"}
+    )
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {"message": "Telegram Bot is running", "status": "active"}
 
 async def main():
     """Asosiy funksiya - polling rejimida bot ishga tushirish"""
@@ -62,8 +81,19 @@ async def main():
         
         print("Bot polling rejimida ishga tushmoqda...")
         
-        # Polling ishga tushirish
-        await dp.start_polling(bot)
+        # FastAPI server va bot polling'ni parallel ishga tushirish
+        import threading
+        
+        # Bot polling'ni alohida thread'da ishga tushirish
+        def run_bot():
+            asyncio.run(dp.start_polling(bot))
+        
+        bot_thread = threading.Thread(target=run_bot, daemon=True)
+        bot_thread.start()
+        
+        # FastAPI server'ni ishga tushirish
+        port = int(os.getenv("PORT", 8000))
+        uvicorn.run(app, host="0.0.0.0", port=port)
         
     except Exception as e:
         logger.error(f"Bot ishga tushishda xatolik: {e}")
