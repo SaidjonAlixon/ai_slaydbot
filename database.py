@@ -13,9 +13,12 @@ async def init_db():
     
     # Railway'da persistent volume uchun papka yaratish
     if DATABASE_PATH != "bot.db":
-        os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
+        db_dir = os.path.dirname(DATABASE_PATH)
+        os.makedirs(db_dir, exist_ok=True)
+        print(f"Database directory created: {db_dir}")
     
     # SQLite ishlatish (Railway'da ham)
+    print(f"Connecting to database: {DATABASE_PATH}")
     async with aiosqlite.connect(DATABASE_PATH) as db:
         # Users jadvali
         await db.execute("""

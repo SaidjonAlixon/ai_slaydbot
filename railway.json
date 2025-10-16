@@ -7,6 +7,12 @@
     "restartPolicyMaxRetries": 10
   },
   "build": {
-    "builder": "NIXPACKS"
-  }
+    "builder": "DOCKERFILE"
+  },
+  "volumes": [
+    {
+      "name": "data",
+      "mountPath": "/app/data"
+    }
+  ]
 }
