@@ -1840,11 +1840,36 @@ async def broadcast_menu(message: types.Message, state: FSMContext):
     )
     await state.set_state(OnboardingStates.BROADCAST_MESSAGE)
 
+# Ommaviy xabar bekor qilish
+@dp.callback_query(F.data == "cancel_broadcast")
+async def cancel_broadcast(callback: types.CallbackQuery, state: FSMContext):
+    """Ommaviy xabar yuborishni bekor qilish"""
+    if not await is_admin(callback.from_user.id):
+        return
+    
+    await callback.message.edit_text(
+        "❌ Ommaviy xabar yuborish bekor qilindi!",
+        reply_markup=None
+    )
+    
+    await callback.answer("Ommaviy xabar bekor qilindi!")
+    await state.set_state(OnboardingStates.MENU)
+
 # Ommaviy xabar yuborish funksiyasi
 @dp.message(StateFilter(OnboardingStates.BROADCAST_MESSAGE))
 async def process_broadcast_message(message: types.Message, state: FSMContext):
     """Ommaviy xabarni qayta ishlash"""
     if not await is_admin(message.from_user.id):
+        return
+    
+    # Agar boshqa tugma bosilgan bo'lsa, jarayonni to'xtatish
+    if message.text in ["📊 Statistika", "👥 Foydalanuvchilar", "💰 Balans boshqarish", "🔙 Orqaga", "📢 Ommaviy xabar", "💬 Bir kishiga xabar"]:
+        await message.answer(
+            "❌ Ommaviy xabar yuborish jarayoni bekor qilindi!\n\n"
+            "Boshqa funksiyalardan foydalanish uchun avval ommaviy xabar yuborishni yakunlang.",
+            reply_markup=get_admin_keyboard()
+        )
+        await state.set_state(OnboardingStates.MENU)
         return
     
     try:
