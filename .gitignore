@@ -42,7 +42,8 @@ Thumbs.db
 *.log
 
 # Database
-*.db
+# DataBase.db is needed for production
+# *.db
 *.sqlite
 *.sqlite3
 
