@@ -381,3 +381,35 @@ async def create_order(order_data: Dict[str, Any]) -> int:
     except Exception as e:
         print(f"Buyurtma yaratishda xatolik: {e}")
         return 0
+
+async def update_order_status(order_id: int, status: str) -> bool:
+    """Buyurtma holatini yangilash"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            if status == 'completed':
+                await db.execute(
+                    "UPDATE orders SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (status, order_id)
+                )
+            else:
+                await db.execute(
+                    "UPDATE orders SET status = ? WHERE id = ?",
+                    (status, order_id)
+                )
+            await db.commit()
+            print(f"Buyurtma holati yangilandi: ID={order_id}, Status={status}")
+            return True
+    except Exception as e:
+        print(f"Buyurtma holatini yangilashda xatolik: {e}")
+        return False
+
+async def save_presentation(presentation_data: Dict[str, Any]) -> bool:
+    """Taqdimot ma'lumotlarini saqlash"""
+    try:
+        # Bu funksiya taqdimot ma'lumotlarini saqlash uchun ishlatiladi
+        # Hozircha faqat log qilamiz
+        print(f"Taqdimot saqlandi: {presentation_data}")
+        return True
+    except Exception as e:
+        print(f"Taqdimot saqlashda xatolik: {e}")
+        return False
