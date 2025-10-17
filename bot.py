@@ -267,54 +267,54 @@ async def start_handler(message: types.Message, state: FSMContext):
     try:
         if not message.from_user:
             return
-    
-    # Referral havola tekshirish
-    referral_id = None
-    if len(message.text.split()) > 1:
-        start_param = message.text.split()[1]
-        if start_param.startswith('ref_'):
-            try:
-                referral_id = int(start_param.replace('ref_', ''))
-                # Agar o'zini taklif qilmoqchi bo'lsa
-                if referral_id == message.from_user.id:
+        
+        # Referral havola tekshirish
+        referral_id = None
+        if len(message.text.split()) > 1:
+            start_param = message.text.split()[1]
+            if start_param.startswith('ref_'):
+                try:
+                    referral_id = int(start_param.replace('ref_', ''))
+                    # Agar o'zini taklif qilmoqchi bo'lsa
+                    if referral_id == message.from_user.id:
+                        referral_id = None
+                except ValueError:
                     referral_id = None
-            except ValueError:
-                referral_id = None
         
-    user = await get_user_by_tg_id(message.from_user.id)
-    
-    if user:
-        # Agar foydalanuvchi mavjud bo'lsa, menyuga o'tkazish
-        full_name = user.get('name', 'Foydalanuvchi')
-        await message.answer(
-            f"Assalomu alaykum, {full_name}! 👋\n\n"
-            "Qaytganingizdan xursandmiz. Quyidagi tugmalardan birini tanlang:",
-            reply_markup=get_main_keyboard()
-        )
-        await state.set_state(OnboardingStates.MENU)
-    else:
-        # Yangi foydalanuvchi uchun ro'yxatdan o'tish
-        welcome_text = (
-            "Assalomu alaykum va xush kelibsiz! 👋\n\n"
-            "Men sizga professional taqdimotlar tayyorlashda yordam beradigan botman.\n\n"
-        )
+        user = await get_user_by_tg_id(message.from_user.id)
         
-        # Agar referral havola orqali kelgan bo'lsa
-        if referral_id:
-            referrer = await get_user_by_tg_id(referral_id)
-            if referrer:
-                referrer_name = referrer.get('full_name', 'Do\'stingiz')
-                welcome_text += f"🎉 Sizni {referrer_name} taklif qildi!\n\n"
-                # Referral yaratish
-                await create_referral(referral_id, message.from_user.id)
-        
-        welcome_text += "Keling, tanishib olaylik! Ism-familiyangizni kiriting:"
-        
-        await message.answer(
-            welcome_text,
-            reply_markup=types.ReplyKeyboardRemove()
-        )
-        await state.set_state(OnboardingStates.ASK_FULLNAME)
+        if user:
+            # Agar foydalanuvchi mavjud bo'lsa, menyuga o'tkazish
+            full_name = user.get('name', 'Foydalanuvchi')
+            await message.answer(
+                f"Assalomu alaykum, {full_name}! 👋\n\n"
+                "Qaytganingizdan xursandmiz. Quyidagi tugmalardan birini tanlang:",
+                reply_markup=get_main_keyboard()
+            )
+            await state.set_state(OnboardingStates.MENU)
+        else:
+            # Yangi foydalanuvchi uchun ro'yxatdan o'tish
+            welcome_text = (
+                "Assalomu alaykum va xush kelibsiz! 👋\n\n"
+                "Men sizga professional taqdimotlar tayyorlashda yordam beradigan botman.\n\n"
+            )
+            
+            # Agar referral havola orqali kelgan bo'lsa
+            if referral_id:
+                referrer = await get_user_by_tg_id(referral_id)
+                if referrer:
+                    referrer_name = referrer.get('full_name', 'Do\'stingiz')
+                    welcome_text += f"🎉 Sizni {referrer_name} taklif qildi!\n\n"
+                    # Referral yaratish
+                    await create_referral(referral_id, message.from_user.id)
+            
+            welcome_text += "Keling, tanishib olaylik! Ism-familiyangizni kiriting:"
+            
+            await message.answer(
+                welcome_text,
+                reply_markup=types.ReplyKeyboardRemove()
+            )
+            await state.set_state(OnboardingStates.ASK_FULLNAME)
     
     except Exception as e:
         logging.error(f"Start handler xatoligi: {e}")
