@@ -20,12 +20,9 @@ async def get_user_by_tg_id(tg_id: int) -> Optional[Dict[str, Any]]:
         if row:
             return dict(row)
         
-        # Agar user_id ustunida topilmasa, tg_id ustunini ham tekshirish
-        cursor = await db.execute(
-            "SELECT * FROM users WHERE tg_id = ?", (tg_id,)
-        )
-        row = await cursor.fetchone()
-        return dict(row) if row else None
+        # Agar user_id ustunida topilmasa, boshqa ustunlarni ham tekshirish
+        # DataBase.db faylida faqat user_id ustuni mavjud
+        return None
 
 async def create_user(user_data: Dict[str, Any]) -> int:
     """Yangi foydalanuvchi yaratish (mavjud database strukturasiga mos)"""
