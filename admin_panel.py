@@ -691,16 +691,10 @@ async def back_to_main_menu(message: types.Message, state: FSMContext):
 
 # Error handler
 @dp.error()
-async def error_handler(event, **kwargs):
+async def error_handler(event, exception):
     """Xatoliklar bilan ishlash"""
     import logging
     logger = logging.getLogger(__name__)
-    
-    exception = None
-    if 'exception' in kwargs:
-        exception = kwargs['exception']
-    elif hasattr(event, 'exception'):
-        exception = event.exception
     
     if exception:
         logger.error(f"Admin panel xatoligi: {exception}")

@@ -986,6 +986,14 @@ async def start_presentation_generation(callback: types.CallbackQuery, state: FS
     tariff_key = data.get('tariff', '')
     pages = data.get('pages', 0)
     
+    # Tariff tekshirish
+    if not tariff_key or tariff_key not in TARIFFS:
+        await callback.message.edit_text(
+            "❌ Xatolik: Tariff topilmadi. Iltimos, qaytadan urinib ko'ring.",
+            reply_markup=get_back_keyboard()
+        )
+        return
+    
     # Barcha tariflar uchun balans tekshirish
     tariff_info = TARIFFS[tariff_key]
     total_price = pages * tariff_info['price_per_page']
