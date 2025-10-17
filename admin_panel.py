@@ -154,6 +154,34 @@ async def broadcast_text_handler(callback: types.CallbackQuery, state: FSMContex
     await state.set_state(AdminStates.BROADCAST_MESSAGE)
     await state.update_data(broadcast_type="text")
 
+@dp.callback_query(F.data == "broadcast_photo")
+async def broadcast_photo_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Rasm bilan xabar yuborish"""
+    await callback.answer("🖼️ Rasm bilan...")
+    
+    await callback.message.edit_text(
+        "🖼️ **Rasm bilan xabar**\n\n"
+        "Yubormoqchi bo'lgan rasmingizni yuboring:",
+        parse_mode="Markdown"
+    )
+    
+    await state.set_state(AdminStates.BROADCAST_MESSAGE)
+    await state.update_data(broadcast_type="photo")
+
+@dp.callback_query(F.data == "broadcast_document")
+async def broadcast_document_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Hujjat bilan xabar yuborish"""
+    await callback.answer("📄 Hujjat bilan...")
+    
+    await callback.message.edit_text(
+        "📄 **Hujjat bilan xabar**\n\n"
+        "Yubormoqchi bo'lgan hujjatingizni yuboring:",
+        parse_mode="Markdown"
+    )
+    
+    await state.set_state(AdminStates.BROADCAST_MESSAGE)
+    await state.update_data(broadcast_type="document")
+
 # Ommaviy xabar bekor qilish
 @dp.callback_query(F.data == "cancel_broadcast")
 async def cancel_broadcast(callback: types.CallbackQuery, state: FSMContext):
@@ -222,7 +250,13 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
                 await asyncio.sleep(0.1)  # Rate limiting uchun
             except (TelegramBadRequest, Exception) as e:
                 failed_count += 1
-                logging.error(f"Xabar yuborishda xatolik {user['user_id']}: {e}")
+                # Faqat muhim xatoliklarni log qilish
+                error_msg = str(e).lower()
+                if "blocked" not in error_msg and "deactivated" not in error_msg:
+                    logging.error(f"Xabar yuborishda xatolik {user['user_id']}: {e}")
+                else:
+                    # Bloklangan yoki deaktivatsiya qilingan foydalanuvchilar uchun faqat debug
+                    logging.debug(f"Foydalanuvchi bloklagan yoki deaktivatsiya qilingan: {user['user_id']}")
         
         # Yakuniy natijani ko'rsatish
         await bot.edit_message_text(
@@ -237,6 +271,144 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
         
         await message.answer(
             "✅ Ommaviy xabar muvaffaqiyatli yakunlandi!",
+            reply_markup=get_admin_keyboard()
+        )
+    
+    elif broadcast_type == "photo":
+        # Rasm bilan xabar yuborish
+        if not message.photo:
+            await message.answer("❌ Rasm topilmadi! Iltimos, rasm yuboring.")
+            return
+            
+        users = await get_all_users()
+        success_count = 0
+        failed_count = 0
+        
+        total_users = len(users)
+        progress_msg = await message.answer(
+            f"📢 **Rasm bilan xabar yuborilmoqda...**\n\n"
+            f"📊 Jami foydalanuvchilar: {total_users} ta\n"
+            f"✅ Yuborildi: 0 ta\n"
+            f"❌ Xatolik: 0 ta\n"
+            f"⏳ Qoldi: {total_users} ta",
+            parse_mode="Markdown"
+        )
+        
+        caption = message.caption or ""
+        
+        for i, user in enumerate(users, 1):
+            try:
+                await bot.send_photo(
+                    chat_id=int(user['user_id']),
+                    photo=message.photo[-1].file_id,
+                    caption=caption,
+                    parse_mode="Markdown" if "**" in caption else None
+                )
+                success_count += 1
+                
+                if i % 10 == 0 or i == total_users:
+                    remaining = total_users - i
+                    await bot.edit_message_text(
+                        chat_id=message.chat.id,
+                        message_id=progress_msg.message_id,
+                        text=f"📢 **Rasm bilan xabar yuborilmoqda...**\n\n"
+                             f"📊 Jami foydalanuvchilar: {total_users} ta\n"
+                             f"✅ Yuborildi: {success_count} ta\n"
+                             f"❌ Xatolik: {failed_count} ta\n"
+                             f"⏳ Qoldi: {remaining} ta",
+                        parse_mode="Markdown"
+                    )
+                
+                await asyncio.sleep(0.1)
+            except (TelegramBadRequest, Exception) as e:
+                failed_count += 1
+                error_msg = str(e).lower()
+                if "blocked" not in error_msg and "deactivated" not in error_msg:
+                    logging.error(f"Rasm yuborishda xatolik {user['user_id']}: {e}")
+                else:
+                    logging.debug(f"Foydalanuvchi bloklagan yoki deaktivatsiya qilingan: {user['user_id']}")
+        
+        await bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=progress_msg.message_id,
+            text=f"📢 **Rasm bilan xabar yuborildi!**\n\n"
+                 f"✅ Muvaffaqiyatli: {success_count} ta\n"
+                 f"❌ Bloklaganlar: {failed_count} ta\n"
+                 f"📊 Jami: {total_users} ta foydalanuvchi",
+            parse_mode="Markdown"
+        )
+        
+        await message.answer(
+            "✅ Rasm bilan xabar muvaffaqiyatli yakunlandi!",
+            reply_markup=get_admin_keyboard()
+        )
+    
+    elif broadcast_type == "document":
+        # Hujjat bilan xabar yuborish
+        if not message.document:
+            await message.answer("❌ Hujjat topilmadi! Iltimos, hujjat yuboring.")
+            return
+            
+        users = await get_all_users()
+        success_count = 0
+        failed_count = 0
+        
+        total_users = len(users)
+        progress_msg = await message.answer(
+            f"📢 **Hujjat bilan xabar yuborilmoqda...**\n\n"
+            f"📊 Jami foydalanuvchilar: {total_users} ta\n"
+            f"✅ Yuborildi: 0 ta\n"
+            f"❌ Xatolik: 0 ta\n"
+            f"⏳ Qoldi: {total_users} ta",
+            parse_mode="Markdown"
+        )
+        
+        caption = message.caption or ""
+        
+        for i, user in enumerate(users, 1):
+            try:
+                await bot.send_document(
+                    chat_id=int(user['user_id']),
+                    document=message.document.file_id,
+                    caption=caption,
+                    parse_mode="Markdown" if "**" in caption else None
+                )
+                success_count += 1
+                
+                if i % 10 == 0 or i == total_users:
+                    remaining = total_users - i
+                    await bot.edit_message_text(
+                        chat_id=message.chat.id,
+                        message_id=progress_msg.message_id,
+                        text=f"📢 **Hujjat bilan xabar yuborilmoqda...**\n\n"
+                             f"📊 Jami foydalanuvchilar: {total_users} ta\n"
+                             f"✅ Yuborildi: {success_count} ta\n"
+                             f"❌ Xatolik: {failed_count} ta\n"
+                             f"⏳ Qoldi: {remaining} ta",
+                        parse_mode="Markdown"
+                    )
+                
+                await asyncio.sleep(0.1)
+            except (TelegramBadRequest, Exception) as e:
+                failed_count += 1
+                error_msg = str(e).lower()
+                if "blocked" not in error_msg and "deactivated" not in error_msg:
+                    logging.error(f"Hujjat yuborishda xatolik {user['user_id']}: {e}")
+                else:
+                    logging.debug(f"Foydalanuvchi bloklagan yoki deaktivatsiya qilingan: {user['user_id']}")
+        
+        await bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=progress_msg.message_id,
+            text=f"📢 **Hujjat bilan xabar yuborildi!**\n\n"
+                 f"✅ Muvaffaqiyatli: {success_count} ta\n"
+                 f"❌ Bloklaganlar: {failed_count} ta\n"
+                 f"📊 Jami: {total_users} ta foydalanuvchi",
+            parse_mode="Markdown"
+        )
+        
+        await message.answer(
+            "✅ Hujjat bilan xabar muvaffaqiyatli yakunlandi!",
             reply_markup=get_admin_keyboard()
         )
     
