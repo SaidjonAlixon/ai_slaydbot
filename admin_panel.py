@@ -166,8 +166,19 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
         success_count = 0
         failed_count = 0
         
+        # Boshlash xabarini yuborish
+        total_users = len(users)
+        progress_msg = await message.answer(
+            f"📢 **Ommaviy xabar yuborilmoqda...**\n\n"
+            f"📊 Jami foydalanuvchilar: {total_users} ta\n"
+            f"✅ Yuborildi: 0 ta\n"
+            f"❌ Xatolik: 0 ta\n"
+            f"⏳ Qoldi: {total_users} ta",
+            parse_mode="Markdown"
+        )
+        
         # Xabarni yuborish
-        for user in users:
+        for i, user in enumerate(users, 1):
             try:
                 await bot.send_message(
                     chat_id=int(user['user_id']),
@@ -175,18 +186,40 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
                     parse_mode="Markdown" if "**" in message.text else None
                 )
                 success_count += 1
+                
+                # Har 10 ta xabardan keyin progress yangilash
+                if i % 10 == 0 or i == total_users:
+                    remaining = total_users - i
+                    await bot.edit_message_text(
+                        chat_id=message.chat.id,
+                        message_id=progress_msg.message_id,
+                        text=f"📢 **Ommaviy xabar yuborilmoqda...**\n\n"
+                             f"📊 Jami foydalanuvchilar: {total_users} ta\n"
+                             f"✅ Yuborildi: {success_count} ta\n"
+                             f"❌ Xatolik: {failed_count} ta\n"
+                             f"⏳ Qoldi: {remaining} ta",
+                        parse_mode="Markdown"
+                    )
+                
                 await asyncio.sleep(0.1)  # Rate limiting uchun
             except (TelegramBadRequest, Exception) as e:
                 failed_count += 1
-                logging.error(f"Xabar yuborishda xatolik {user['tg_id']}: {e}")
+                logging.error(f"Xabar yuborishda xatolik {user['user_id']}: {e}")
+        
+        # Yakuniy natijani ko'rsatish
+        await bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=progress_msg.message_id,
+            text=f"📢 **Ommaviy xabar yuborildi!**\n\n"
+                 f"✅ Muvaffaqiyatli: {success_count} ta\n"
+                 f"❌ Bloklaganlar: {failed_count} ta\n"
+                 f"📊 Jami: {total_users} ta foydalanuvchi",
+            parse_mode="Markdown"
+        )
         
         await message.answer(
-            f"📢 **Ommaviy xabar yuborildi!**\n\n"
-            f"✅ Muvaffaqiyatli: {success_count} ta\n"
-            f"❌ Xatolik: {failed_count} ta\n"
-            f"📊 Jami: {len(users)} ta foydalanuvchi",
-            reply_markup=get_admin_keyboard(),
-            parse_mode="Markdown"
+            "✅ Ommaviy xabar muvaffaqiyatli yakunlandi!",
+            reply_markup=get_admin_keyboard()
         )
     
     await state.set_state(AdminStates.MENU)
