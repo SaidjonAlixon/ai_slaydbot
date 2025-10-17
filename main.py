@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
 from bot import dp, bot
-from database import init_db
+from database_adapter import init_db
 
 # .env faylini yuklash
 load_dotenv()

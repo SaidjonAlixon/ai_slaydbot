@@ -5,8 +5,8 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-# Railway'da persistent volume, local'da oddiy fayl
-DATABASE_PATH = os.getenv("DATABASE_PATH", "bot.db")
+# Railway'da persistent volume, local'da mavjud DataBase.db ishlatish
+DATABASE_PATH = os.getenv("DATABASE_PATH", "DataBase.db")
 
 async def init_db():
     """Ma'lumotlar bazasini ishga tushirish"""
