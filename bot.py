@@ -18,7 +18,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from states import OnboardingStates, OrderStates
 from aiogram.exceptions import TelegramBadRequest
 from database_adapter import (
-    init_db, get_user_by_tg_id, create_user, get_all_users, get_user_balance, update_user_balance, deduct_user_balance, get_user_statistics, get_referral_stats, create_referral, confirm_referral, log_action, get_user_free_orders_count, get_referral_rewards, update_referral_rewards, create_order, update_order_status, save_presentation, is_presentation_enabled
+    init_db, get_user_by_tg_id, create_user, get_all_users, get_user_balance, update_user_balance, deduct_user_balance, get_user_statistics, get_referral_stats, create_referral, confirm_referral, log_action, get_user_free_orders_count, get_referral_rewards, update_referral_rewards, create_order, update_order_status, save_presentation
 )
 from openai_client import generate_presentation_content
 from pptx_generator import create_presentation_file
@@ -408,20 +408,6 @@ async def finish_registration(message: types.Message, state: FSMContext):
 @dp.message(StateFilter(OnboardingStates.MENU), F.text == "📊 Taqdimot tayyorlash")
 async def start_presentation_order(message: types.Message, state: FSMContext):
     """Taqdimot buyurtmasini boshlash"""
-    # Taqdimot tayyorlash yoqilganligini tekshirish
-    is_enabled = await is_presentation_enabled()
-    
-    if not is_enabled:
-        await message.answer(
-            "⏸️ **Taqdimot tayyorlash vaqtincha to'xtatilgan**\n\n"
-            "📞 **Adminga murojaat qiling**\n\n"
-            "Taqdimot tayyorlash xizmati hozircha ishlamayapti.\n"
-            "Qo'shimcha ma'lumot uchun @preuzadmin ga yozing.",
-            reply_markup=get_back_keyboard(),
-            parse_mode="Markdown"
-        )
-        return
-    
     await message.answer(
         "📊 Taqdimot tayyorlash xizmati:\n\n"
         "AI yordamida professional taqdimotlar tayyorlab beramiz!\n\n"
@@ -1800,22 +1786,6 @@ async def back_to_menu_handler(callback: types.CallbackQuery, state: FSMContext)
 async def create_presentation_callback(callback: types.CallbackQuery, state: FSMContext):
     """Taqdimot yaratish callback handler"""
     await callback.answer("📊 Taqdimot tayyorlash...")
-    
-    # Taqdimot tayyorlash yoqilganligini tekshirish
-    is_enabled = await is_presentation_enabled()
-    
-    if not is_enabled:
-        await callback.message.edit_text(
-            "⏸️ **Taqdimot tayyorlash vaqtincha to'xtatilgan**\n\n"
-            "📞 **Adminga murojaat qiling**\n\n"
-            "Taqdimot tayyorlash xizmati hozircha ishlamayapti.\n"
-            "Qo'shimcha ma'lumot uchun @support_admin ga yozing.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_menu")]
-            ]),
-            parse_mode="Markdown"
-        )
-        return
     
     # Taqdimot tayyorlashni boshlash
     await callback.message.edit_text(

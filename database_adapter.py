@@ -422,35 +422,3 @@ async def save_presentation(presentation_data: Dict[str, Any]) -> bool:
         print(f"Taqdimot saqlashda xatolik: {e}")
         return False
 
-async def get_setting(key: str) -> str:
-    """Sozlamani olish"""
-    try:
-        async with aiosqlite.connect(DATABASE_PATH) as db:
-            cursor = await db.execute(
-                "SELECT value FROM settings WHERE key = ?",
-                (key,)
-            )
-            result = await cursor.fetchone()
-            return result[0] if result else ""
-    except Exception as e:
-        print(f"Sozlama olishda xatolik: {e}")
-        return ""
-
-async def update_setting(key: str, value: str) -> bool:
-    """Sozlamani yangilash"""
-    try:
-        async with aiosqlite.connect(DATABASE_PATH) as db:
-            await db.execute(
-                "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
-                (key, value)
-            )
-            await db.commit()
-            return True
-    except Exception as e:
-        print(f"Sozlama yangilashda xatolik: {e}")
-        return False
-
-async def is_presentation_enabled() -> bool:
-    """Taqdimot tayyorlash yoqilganligini tekshirish"""
-    setting = await get_setting("presentation_enabled")
-    return setting.lower() == "true"
