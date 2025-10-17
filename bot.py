@@ -1413,7 +1413,7 @@ async def top_up_balance(callback: types.CallbackQuery):
     await callback.answer("💳 Balansni to'ldirish...")
     
     payment_text = (
-        "💳 Balansni to'ldirish:</b>\n\n"
+        "💳 **Balansni to'ldirish**\n\n"
         "Quyidagi usullar orqali balansingizni to'ldirishingiz mumkin:\n\n"
         "🔹 Naqt to'lov:\n"
         "• Uzcard: 5614682110523232\n"
