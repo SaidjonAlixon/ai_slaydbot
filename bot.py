@@ -18,7 +18,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from states import OnboardingStates, OrderStates
 from aiogram.exceptions import TelegramBadRequest
 from database_adapter import (
-    init_db, get_user_by_tg_id, create_user, get_all_users, get_user_balance, update_user_balance, deduct_user_balance, get_user_statistics, get_referral_stats, create_referral, confirm_referral, log_action
+    init_db, get_user_by_tg_id, create_user, get_all_users, get_user_balance, update_user_balance, deduct_user_balance, get_user_statistics, get_referral_stats, create_referral, confirm_referral, log_action, get_user_free_orders_count
 )
 from openai_client import generate_presentation_content
 from pptx_generator import create_presentation_file
@@ -2519,25 +2519,12 @@ async def process_referral_settings(message: types.Message):
 
 # Error handler
 @dp.error()
-async def error_handler(event, kwargs):
+async def error_handler(event, exception):
     """Xatoliklar bilan ishlash"""
     import logging
-    logging.error(f"Bot xatoligi: {event}")
-    print(f"Bot xatoligi: {event}")
-    print(f"Xatolik tafsilotlari: {kwargs}")
     logger = logging.getLogger(__name__)
-    
-    # Exception'ni to'g'ri olish
-    exception = None
-    if 'exception' in kwargs:
-        exception = kwargs['exception']
-    elif hasattr(event, 'exception'):
-        exception = event.exception
-    
-    if exception:
-        logger.error(f"Bot xatoligi: {exception}")
-    else:
-        logger.warning("Noma'lum xatolik yuz berdi")
+    logger.error(f"Bot xatoligi: {exception}")
+    print(f"Bot xatoligi: {exception}")
     
     # Foydalanuvchiga umumiy xatolik xabari
     if hasattr(event, 'message') and event.message:

@@ -218,7 +218,15 @@ async def get_referral_stats(user_tg_id: int) -> Dict[str, Any]:
     }
 
 async def get_user_free_orders_count(user_tg_id: int) -> int:
-    return 0
+    """Foydalanuvchining bepul buyurtmalar sonini olish"""
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT COUNT(*) as count FROM orders WHERE user_tg_id = ? AND tariff = 'START' AND status = 'completed'",
+            (user_tg_id,)
+        )
+        row = await cursor.fetchone()
+        return row['count'] if row else 0
 
 async def add_transaction(transaction_data: Dict[str, Any]) -> int:
     return 0
