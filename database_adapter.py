@@ -88,9 +88,15 @@ async def init_db():
         print(f"Oxirgi 5 ta foydalanuvchi:")
         for i, user in enumerate(users[:5], 1):
             # Unicode belgilarni to'g'ri ko'rsatish
-            name = user['name'].encode('utf-8', errors='ignore').decode('utf-8')
-            phone = user['phone_number'].encode('utf-8', errors='ignore').decode('utf-8')
-            print(f"  {i}. ID: {user['user_id']}, Ism: {name}, Telefon: {phone}")
+            try:
+                name = user['name']
+                phone = user['phone_number']
+                print(f"  {i}. ID: {user['user_id']}, Ism: {name}, Telefon: {phone}")
+            except UnicodeEncodeError:
+                # Agar Unicode xatolik bo'lsa, oddiy matn ko'rsatish
+                name = str(user['name']).encode('ascii', errors='ignore').decode('ascii')
+                phone = str(user['phone_number']).encode('ascii', errors='ignore').decode('ascii')
+                print(f"  {i}. ID: {user['user_id']}, Ism: {name}, Telefon: {phone}")
 
 # Boshqa funksiyalar uchun placeholder'lar
 async def create_order(order_data: Dict[str, Any]) -> int:

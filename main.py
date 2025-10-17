@@ -1,12 +1,19 @@
 import os
 import logging
 import asyncio
+import sys
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
 from bot import dp, bot
 from database_adapter import init_db
+
+# Windows'da Unicode belgilar uchun encoding sozlash
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
 
 # .env faylini yuklash
 load_dotenv()
