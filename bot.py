@@ -18,7 +18,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from states import OnboardingStates, OrderStates
 from aiogram.exceptions import TelegramBadRequest
 from database_adapter import (
-    init_db, get_user_by_tg_id, create_user, get_all_users, get_user_balance, update_user_balance, deduct_user_balance, get_user_statistics
+    init_db, get_user_by_tg_id, create_user, get_all_users, get_user_balance, update_user_balance, deduct_user_balance, get_user_statistics, get_referral_stats, create_referral, confirm_referral
 )
 from openai_client import generate_presentation_content
 from pptx_generator import create_presentation_file
