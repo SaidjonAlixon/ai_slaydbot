@@ -18,7 +18,8 @@ from database_adapter import (
     get_all_users, get_user_by_tg_id, get_user_statistics, 
     get_user_balance, update_user_balance, deduct_user_balance,
     get_referral_stats, add_transaction, log_action,
-    get_referral_rewards, update_referral_rewards
+    get_referral_rewards, update_referral_rewards,
+    get_setting, update_setting, is_presentation_enabled
 )
 
 # .env faylini yuklash
@@ -69,6 +70,7 @@ def get_admin_keyboard() -> ReplyKeyboardMarkup:
     builder.row(KeyboardButton(text="📊 Statistika"))
     builder.row(KeyboardButton(text="💰 Balans boshqarish"))
     builder.row(KeyboardButton(text="⚙️ Referral sozlamalari"))
+    builder.row(KeyboardButton(text="📊 Taqdimot boshqarish"))
     builder.row(KeyboardButton(text="🏠 Asosiy menyu"))
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=False)
 
@@ -103,6 +105,15 @@ def get_referral_settings_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="💰 Taklif qilgan uchun bonus", callback_data="referral_referrer_reward"))
     builder.row(InlineKeyboardButton(text="🎁 Taklif qilingan uchun bonus", callback_data="referral_referred_reward"))
+    builder.row(InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_admin_menu"))
+    return builder.as_markup()
+
+def get_presentation_management_keyboard() -> InlineKeyboardMarkup:
+    """Taqdimot boshqarish klaviaturasi"""
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="⏸️ Taqdimot tayyorlashni to'xtatish", callback_data="presentation_disable"))
+    builder.row(InlineKeyboardButton(text="▶️ Taqdimot tayyorlashni yoqish", callback_data="presentation_enable"))
+    builder.row(InlineKeyboardButton(text="📊 Holatni ko'rish", callback_data="presentation_status"))
     builder.row(InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_admin_menu"))
     return builder.as_markup()
 
@@ -843,6 +854,123 @@ async def back_to_admin_menu(callback: types.CallbackQuery, state: FSMContext):
     )
     
     await state.set_state(AdminStates.MENU)
+
+# Taqdimot boshqarish
+@dp.message(StateFilter(AdminStates.MENU), F.text == "📊 Taqdimot boshqarish")
+async def presentation_management_menu(message: types.Message):
+    """Taqdimot boshqarish menyusi"""
+    if not await is_admin(message.from_user.id):
+        return
+    
+    await message.answer(
+        "📊 **Taqdimot boshqarish**\n\n"
+        "Taqdimot tayyorlash funksiyasini boshqarish:",
+        reply_markup=get_presentation_management_keyboard(),
+        parse_mode="Markdown"
+    )
+
+@dp.callback_query(F.data == "presentation_status")
+async def show_presentation_status(callback: types.CallbackQuery):
+    """Taqdimot holatini ko'rsatish"""
+    await callback.answer("📊 Holat tekshirilmoqda...")
+    
+    try:
+        is_enabled = await is_presentation_enabled()
+        status_text = "✅ Yoqilgan" if is_enabled else "❌ O'chirilgan"
+        
+        message_text = (
+            f"📊 **Taqdimot tayyorlash holati**\n\n"
+            f"🔧 **Joriy holat:** {status_text}\n\n"
+            f"ℹ️ **Ma'lumot:**\n"
+            f"• Yoqilgan bo'lsa - foydalanuvchilar taqdimot yaratishlari mumkin\n"
+            f"• O'chirilgan bo'lsa - foydalanuvchilar taqdimot yaratishlari mumkin emas"
+        )
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Yangilash", callback_data="presentation_status")],
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_admin_menu")]
+        ])
+        
+        await callback.message.edit_text(message_text, reply_markup=keyboard, parse_mode="Markdown")
+        
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ **Holatni olishda xatolik!**\n\n"
+            f"Xatolik: {str(e)}",
+            parse_mode="Markdown"
+        )
+
+@dp.callback_query(F.data == "presentation_disable")
+async def disable_presentation(callback: types.CallbackQuery):
+    """Taqdimot tayyorlashni o'chirish"""
+    await callback.answer("⏸️ Taqdimot tayyorlash o'chirilmoqda...")
+    
+    try:
+        success = await update_setting("presentation_enabled", "false")
+        
+        if success:
+            message_text = (
+                "⏸️ **Taqdimot tayyorlash o'chirildi!**\n\n"
+                "✅ Foydalanuvchilar endi taqdimot yaratishlari mumkin emas\n"
+                "📞 Ular 'Adminga murojaat qiling' xabarini ko'rishadi\n\n"
+                "🔄 Qayta yoqish uchun 'Taqdimot tayyorlashni yoqish' tugmasini bosing"
+            )
+        else:
+            message_text = (
+                "❌ **Xatolik!**\n\n"
+                "Taqdimot tayyorlashni o'chirishda muammo yuz berdi.\n"
+                "Iltimos, qaytadan urinib ko'ring."
+            )
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Yangilash", callback_data="presentation_status")],
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_admin_menu")]
+        ])
+        
+        await callback.message.edit_text(message_text, reply_markup=keyboard, parse_mode="Markdown")
+        
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ **O'chirishda xatolik!**\n\n"
+            f"Xatolik: {str(e)}",
+            parse_mode="Markdown"
+        )
+
+@dp.callback_query(F.data == "presentation_enable")
+async def enable_presentation(callback: types.CallbackQuery):
+    """Taqdimot tayyorlashni yoqish"""
+    await callback.answer("▶️ Taqdimot tayyorlash yoqilmoqda...")
+    
+    try:
+        success = await update_setting("presentation_enabled", "true")
+        
+        if success:
+            message_text = (
+                "▶️ **Taqdimot tayyorlash yoqildi!**\n\n"
+                "✅ Foydalanuvchilar endi taqdimot yaratishlari mumkin\n"
+                "🎉 Barcha funksiyalar ishlamoqda\n\n"
+                "🔄 Holatni tekshirish uchun 'Holatni ko'rish' tugmasini bosing"
+            )
+        else:
+            message_text = (
+                "❌ **Xatolik!**\n\n"
+                "Taqdimot tayyorlashni yoqishda muammo yuz berdi.\n"
+                "Iltimos, qaytadan urinib ko'ring."
+            )
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Yangilash", callback_data="presentation_status")],
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_admin_menu")]
+        ])
+        
+        await callback.message.edit_text(message_text, reply_markup=keyboard, parse_mode="Markdown")
+        
+    except Exception as e:
+        await callback.message.edit_text(
+            f"❌ **Yoqishda xatolik!**\n\n"
+            f"Xatolik: {str(e)}",
+            parse_mode="Markdown"
+        )
 
 # Asosiy menyuga qaytish
 @dp.message(StateFilter(AdminStates.MENU), F.text == "🏠 Asosiy menyu")
