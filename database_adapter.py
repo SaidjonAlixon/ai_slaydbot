@@ -69,29 +69,11 @@ async def search_users(query: str) -> List[Dict[str, Any]]:
         return [dict(row) for row in rows]
 
 async def init_db():
-    """Ma'lumotlar bazasini ishga tushirish (mavjud database ishlatish)"""
+    """Ma'lumotlar bazasini ishga tushirish (faqat mavjud DataBase.db ishlatish)"""
     
-    # Agar DataBase.db topilmasa, yangi bo'sh database yaratish
     if not os.path.exists(DATABASE_PATH):
         print(f"Database fayli topilmadi: {DATABASE_PATH}")
-        print("Yangi bo'sh database yaratilmoqda...")
-        
-        # Yangi bo'sh database yaratish
-        async with aiosqlite.connect(DATABASE_PATH) as db:
-            await db.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id TEXT PRIMARY KEY,
-                    lang TEXT DEFAULT 'uz',
-                    name TEXT NOT NULL,
-                    phone_number TEXT DEFAULT '',
-                    order_type TEXT DEFAULT 'False',
-                    order_name TEXT DEFAULT 'False',
-                    order_date TEXT DEFAULT ''
-                )
-            """)
-            await db.commit()
-        
-        print(f"Yangi database yaratildi: {DATABASE_PATH}")
+        print("Iltimos, DataBase.db faylini loyiha papkasiga qo'ying!")
         return
     
     print(f"Database yuklandi: {DATABASE_PATH}")
