@@ -93,11 +93,13 @@ async def main():
         # Bot polling'ni background task sifatida ishga tushirish
         async def run_bot_polling():
             try:
+                await asyncio.sleep(5)  # FastAPI server ishga tushish uchun kutish
                 await dp.start_polling(bot)
             except Exception as e:
                 logger.error(f"Bot polling xatoligi: {e}")
                 print(f"Bot polling xatoligi: {e}")
         
+        # Bot polling'ni background task sifatida ishga tushirish
         bot_task = asyncio.create_task(run_bot_polling())
         
         # FastAPI server va bot polling'ni parallel ishga tushirish
