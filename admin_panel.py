@@ -175,16 +175,6 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
     if not await is_admin(message.from_user.id):
         return
     
-    # Agar boshqa tugma bosilgan bo'lsa, jarayonni to'xtatish
-    if message.text in ["📊 Statistika", "👥 Foydalanuvchilar", "💰 Balans boshqarish", "🔙 Orqaga", "📢 Ommaviy xabar", "💬 Bir kishiga xabar"]:
-        await message.answer(
-            "❌ Ommaviy xabar yuborish jarayoni bekor qilindi!\n\n"
-            "Boshqa funksiyalardan foydalanish uchun avval ommaviy xabar yuborishni yakunlang.",
-            reply_markup=get_admin_keyboard()
-        )
-        await state.set_state(AdminStates.MENU)
-        return
-    
     data = await state.get_data()
     broadcast_type = data.get('broadcast_type', 'text')
     
