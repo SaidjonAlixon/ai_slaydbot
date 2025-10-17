@@ -356,3 +356,28 @@ async def update_referral_rewards(referrer_amount: int, referred_amount: int) ->
     except Exception as e:
         print(f"Referral bonuslarini yangilashda xatolik: {e}")
         return False
+
+async def create_order(order_data: Dict[str, Any]) -> int:
+    """Yangi buyurtma yaratish"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            cursor = await db.execute(
+                """INSERT INTO orders (
+                    user_tg_id, tariff, topic, slides_count, 
+                    design_style, color_scheme, status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                (
+                    order_data['user_tg_id'],
+                    order_data['tariff'],
+                    order_data['topic'],
+                    order_data['slides_count'],
+                    order_data['design_style'],
+                    order_data['color_scheme'],
+                    order_data['status']
+                )
+            )
+            await db.commit()
+            return cursor.lastrowid
+    except Exception as e:
+        print(f"Buyurtma yaratishda xatolik: {e}")
+        return 0
