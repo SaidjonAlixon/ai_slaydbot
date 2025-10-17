@@ -18,7 +18,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from states import OnboardingStates, OrderStates
 from aiogram.exceptions import TelegramBadRequest
 from database_adapter import (
-    init_db, get_user_by_tg_id, create_user, get_all_users, get_user_balance, update_user_balance, deduct_user_balance, get_user_statistics, get_referral_stats, create_referral, confirm_referral, log_action, get_user_free_orders_count
+    init_db, get_user_by_tg_id, create_user, get_all_users, get_user_balance, update_user_balance, deduct_user_balance, get_user_statistics, get_referral_stats, create_referral, confirm_referral, log_action, get_user_free_orders_count, get_referral_rewards
 )
 from openai_client import generate_presentation_content
 from pptx_generator import create_presentation_file
@@ -76,20 +76,20 @@ dp = Dispatcher(storage=storage)
 
 # Global error handler
 @dp.error()
-async def error_handler(update: types.Update, exception: Exception):
+async def error_handler(event, exception):
     """Global error handler"""
-    logging.error(f"Bot xatoligi: update={update}, exception={exception}")
+    logging.error(f"Bot xatoligi: event={event}, exception={exception}")
     print(f"Bot xatoligi: {exception}")
     
-    # Agar update message bo'lsa, foydalanuvchiga xabar berish
-    if update.message:
+    # Foydalanuvchiga umumiy xatolik xabari
+    if hasattr(event, 'message') and event.message:
         try:
-            await update.message.answer(
-                "❌ Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.",
-                reply_markup=types.ReplyKeyboardRemove()
+            await event.message.answer(
+                "❌ Xatolik yuz berdi!\n\n"
+                "Iltimos, qaytadan urinib ko'ring yoki /start buyrug'ini yuboring.",
             )
-        except Exception as e:
-            logging.error(f"Error message yuborishda xatolik: {e}")
+        except:
+            pass
     
     return True
 
@@ -2518,23 +2518,6 @@ async def process_referral_settings(message: types.Message):
 
 
 # Error handler
-@dp.error()
-async def error_handler(event, exception):
-    """Xatoliklar bilan ishlash"""
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.error(f"Bot xatoligi: {exception}")
-    print(f"Bot xatoligi: {exception}")
-    
-    # Foydalanuvchiga umumiy xatolik xabari
-    if hasattr(event, 'message') and event.message:
-        try:
-            await event.message.answer(
-                "❌ Xatolik yuz berdi!\n\n"
-                "Iltimos, qaytadan urinib ko'ring yoki /start buyrug'ini yuboring.",
-            )
-        except:
-            pass
 
 
 async def main():
