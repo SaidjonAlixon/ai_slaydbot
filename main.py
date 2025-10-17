@@ -43,8 +43,13 @@ async def startup_event():
 async def health_check():
     """Healthcheck endpoint Railway uchun"""
     try:
-        # Simple health check - just return status
-        return {"status": "healthy", "service": "telegram-bot", "timestamp": datetime.now().isoformat()}
+        # Simple health check - just return status without database dependency
+        return {
+            "status": "healthy", 
+            "service": "telegram-bot", 
+            "timestamp": datetime.now().isoformat(),
+            "uptime": "running"
+        }
     except Exception as e:
         logger.error(f"Health check error: {e}")
         return {"status": "unhealthy", "error": str(e)}
@@ -97,11 +102,14 @@ async def main():
         port = int(os.getenv("PORT", 8000))
         logger.info(f"Starting FastAPI server on port {port}")
         
-        # FastAPI server'ni alohida task'da ishga tushirish
+        # FastAPI server'ni avval ishga tushirish
+        logger.info("Starting FastAPI server first...")
+        config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+        server = uvicorn.Server(config)
+        
+        # FastAPI server'ni background'da ishga tushirish
         async def run_fastapi():
             try:
-                config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
-                server = uvicorn.Server(config)
                 await server.serve()
             except Exception as e:
                 logger.error(f"FastAPI server xatoligi: {e}")
@@ -111,7 +119,7 @@ async def main():
         async def run_bot_polling():
             try:
                 # FastAPI server ishga tushish uchun kutish
-                await asyncio.sleep(5)
+                await asyncio.sleep(10)
                 logger.info("Bot polling boshlanmoqda...")
                 # Admin panel dispatcher'ini asosiy dispatcher'ga qo'shish
                 dp.include_router(admin_dp)
@@ -120,8 +128,14 @@ async def main():
                 logger.error(f"Bot polling xatoligi: {e}")
                 print(f"Bot polling xatoligi: {e}")
         
-        # Ikkala service'ni parallel ishga tushirish
+        # FastAPI server'ni avval ishga tushirish
         fastapi_task = asyncio.create_task(run_fastapi())
+        
+        # FastAPI server ishga tushish uchun kutish
+        await asyncio.sleep(3)
+        logger.info("FastAPI server started, starting bot polling...")
+        
+        # Bot polling'ni ishga tushirish
         bot_task = asyncio.create_task(run_bot_polling())
         
         logger.info("All services started successfully")
