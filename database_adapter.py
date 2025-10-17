@@ -210,18 +210,84 @@ async def deduct_user_balance(user_tg_id: int, amount: int) -> bool:
         print(f"Balans ayirishda xatolik: {e}")
         return False
 
-async def create_referral(referrer_tg_id: int, referred_tg_id: int):
-    pass
+async def create_referral(referrer_tg_id: int, referred_tg_id: int) -> bool:
+    """Referral yaratish"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            cursor = await db.execute(
+                "INSERT INTO referrals (referrer_id, referred_id, status) VALUES (?, ?, 'pending')",
+                (str(referrer_tg_id), str(referred_tg_id))
+            )
+            await db.commit()
+            return True
+    except Exception as e:
+        print(f"Referral yaratishda xatolik: {e}")
+        return False
 
-async def confirm_referral(referrer_tg_id: int, referred_tg_id: int):
-    pass
+async def confirm_referral(referrer_tg_id: int, referred_tg_id: int) -> bool:
+    """Referralni tasdiqlash"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            # Referralni tasdiqlash
+            await db.execute(
+                "UPDATE referrals SET status = 'confirmed', confirmed_at = CURRENT_TIMESTAMP WHERE referrer_id = ? AND referred_id = ?",
+                (str(referrer_tg_id), str(referred_tg_id))
+            )
+            
+            # Bonuslarni qo'shish
+            rewards = await get_referral_rewards()
+            
+            # Taklif qiluvchiga bonus
+            await update_user_balance(referrer_tg_id, rewards['referrer_reward'], 'referral')
+            
+            # Taklif qilinganga bonus
+            await update_user_balance(referred_tg_id, rewards['referred_reward'], 'referral')
+            
+            await db.commit()
+            return True
+    except Exception as e:
+        print(f"Referral tasdiqlashda xatolik: {e}")
+        return False
 
 async def get_referral_stats(user_tg_id: int) -> Dict[str, Any]:
-    return {
-        'confirmed_referrals': 0,
-        'total_referrals': 0,
-        'referral_earnings': 0
-    }
+    """Foydalanuvchining referral statistikasini olish"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            
+            # Referral statistikasini olish
+            cursor = await db.execute(
+                "SELECT COUNT(*) as total FROM referrals WHERE referrer_id = ?", 
+                (str(user_tg_id),)
+            )
+            total_referrals = (await cursor.fetchone())['total'] or 0
+            
+            cursor = await db.execute(
+                "SELECT COUNT(*) as confirmed FROM referrals WHERE referrer_id = ? AND status = 'confirmed'", 
+                (str(user_tg_id),)
+            )
+            confirmed_referrals = (await cursor.fetchone())['confirmed'] or 0
+            
+            # Referral balansini olish
+            balance = await get_user_balance(user_tg_id)
+            referral_earnings = balance['referral_balance']
+            
+            return {
+                'total_referrals': total_referrals,
+                'confirmed_referrals': confirmed_referrals,
+                'pending_referrals': total_referrals - confirmed_referrals,
+                'total_bonus': referral_earnings,
+                'this_month': 0  # Hozircha oddiy
+            }
+    except Exception as e:
+        print(f"Referral statistikasini olishda xatolik: {e}")
+        return {
+            'total_referrals': 0,
+            'confirmed_referrals': 0,
+            'pending_referrals': 0,
+            'total_bonus': 0,
+            'this_month': 0
+        }
 
 async def get_user_free_orders_count(user_tg_id: int) -> int:
     """Foydalanuvchining bepul buyurtmalar sonini olish"""
@@ -248,8 +314,12 @@ async def add_transaction(user_tg_id: int, amount: int, transaction_type: str, d
         print(f"Tranzaksiya qo'shishda xatolik: {e}")
         return 0
 
-async def get_referral_rewards(user_tg_id: int) -> List[Dict[str, Any]]:
-    return []
+async def get_referral_rewards() -> Dict[str, int]:
+    """Referral bonuslarini olish"""
+    return {
+        'referrer_reward': 1000,  # Taklif qiluvchi uchun bonus
+        'referred_reward': 500    # Taklif qilingan uchun bonus
+    }
 
 async def update_referral_rewards(referrer_amount: int, referred_amount: int):
     pass
