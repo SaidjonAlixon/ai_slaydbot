@@ -170,7 +170,7 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
         for user in users:
             try:
                 await bot.send_message(
-                    chat_id=user['tg_id'],
+                    chat_id=int(user['user_id']),
                     text=message.text,
                     parse_mode="Markdown" if "**" in message.text else None
                 )

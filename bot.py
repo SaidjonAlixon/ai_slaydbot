@@ -357,10 +357,9 @@ async def finish_registration(message: types.Message, state: FSMContext):
     }
     
     await create_user(user_data)
-    await log_action(message.from_user.id, "user_registered", user_data)
     
-    # Agar referral orqali kelgan bo'lsa, uni tasdiqlash
-    referral_confirmed = await confirm_referral(message.from_user.id)
+    # Referral funksiyalari hozircha ishlamaydi
+    referral_confirmed = False
     
     welcome_text = (
         f"🎉 Ro'yxatdan o'tish muvaffaqiyatli yakunlandi!\n\n"
@@ -1860,21 +1859,21 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
                 # Agar xabar matn bo'lsa
                 if message.text:
                     await bot.send_message(
-                        chat_id=user['tg_id'],
+                        chat_id=int(user['user_id']),
                         text=message.text,
                         parse_mode="Markdown" if "**" in message.text else None
                     )
                 # Agar xabar forward qilingan bo'lsa
                 elif message.forward_from or message.forward_from_chat:
                     await bot.forward_message(
-                        chat_id=user['tg_id'],
+                        chat_id=int(user['user_id']),
                         from_chat_id=message.chat.id,
                         message_id=message.message_id
                     )
                 # Agar xabar rasm bo'lsa
                 elif message.photo:
                     await bot.send_photo(
-                        chat_id=user['tg_id'],
+                        chat_id=int(user['user_id']),
                         photo=message.photo[-1].file_id,
                         caption=message.caption if message.caption else None
                     )
