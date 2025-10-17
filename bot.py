@@ -416,7 +416,7 @@ async def start_presentation_order(message: types.Message, state: FSMContext):
             "⏸️ **Taqdimot tayyorlash vaqtincha to'xtatilgan**\n\n"
             "📞 **Adminga murojaat qiling**\n\n"
             "Taqdimot tayyorlash xizmati hozircha ishlamayapti.\n"
-            "Qo'shimcha ma'lumot uchun @support_admin ga yozing.",
+            "Qo'shimcha ma'lumot uchun @preuzadmin ga yozing.",
             reply_markup=get_back_keyboard(),
             parse_mode="Markdown"
         )
