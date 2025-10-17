@@ -271,7 +271,7 @@ async def start_handler(message: types.Message, state: FSMContext):
     
     if user:
         # Agar foydalanuvchi mavjud bo'lsa, menyuga o'tkazish
-        full_name = user.get('full_name', 'Foydalanuvchi') if user else 'Foydalanuvchi'
+        full_name = user.get('name', 'Foydalanuvchi')
         await message.answer(
             f"Assalomu alaykum, {full_name}! 👋\n\n"
             "Qaytganingizdan xursandmiz. Quyidagi tugmalardan birini tanlang:",

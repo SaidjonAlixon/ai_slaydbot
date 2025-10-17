@@ -29,7 +29,7 @@ async def create_user(user_data: Dict[str, Any]) -> int:
         """, (
             str(user_data['tg_id']),
             user_data.get('lang', 'uz'),
-            user_data['full_name'],
+            user_data.get('full_name', user_data.get('name', 'Foydalanuvchi')),
             user_data.get('phone', ''),
             'False',
             'False',
