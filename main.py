@@ -20,12 +20,12 @@ if sys.platform == "win32":
 # .env faylini yuklash
 load_dotenv()
 
-# Logging sozlash
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Logging o'chirilgan - print ishlatamiz
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# )
+# logger = logging.getLogger(__name__)
 
 # Environment o'zgaruvchilar
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -36,7 +36,6 @@ app = FastAPI(title="Telegram Bot API", version="1.0.0")
 @app.on_event("startup")
 async def startup_event():
     """FastAPI startup event"""
-    logger.info("FastAPI application started")
     print("FastAPI application started")
 
 @app.get("/health")
@@ -44,7 +43,7 @@ async def health_check():
     """Healthcheck endpoint Railway uchun"""
     try:
         # Simple health check - just return status without database dependency
-        logger.info("Health check requested")
+        print("Health check requested")
         return {
             "status": "healthy", 
             "service": "telegram-bot", 
@@ -53,7 +52,7 @@ async def health_check():
             "port": os.getenv("PORT", 8000)
         }
     except Exception as e:
-        logger.error(f"Health check error: {e}")
+        print(f"Health check error: {e}")
         return {"status": "unhealthy", "error": str(e)}
 
 @app.get("/")
@@ -78,31 +77,30 @@ async def main():
     try:
         # Ma'lumotlar bazasini ishga tushirish
         await init_db()
-        logger.info("Database initialized successfully")
+        print("Database initialized successfully")
         
         # Webhookni to'liq o'chirish (agar avval o'rnatilgan bo'lsa)
         try:
             await bot.delete_webhook(drop_pending_updates=True)
-            logger.info("Webhook deleted successfully")
+            print("Webhook deleted successfully")
             
             # Webhook holatini tekshirish
             webhook_info = await bot.get_webhook_info()
             if webhook_info.url:
-                logger.warning(f"Webhook hali ham faol: {webhook_info.url}")
+                print(f"Webhook hali ham faol: {webhook_info.url}")
                 # Qo'shimcha urinish
                 await bot.delete_webhook(drop_pending_updates=True)
-                logger.info("Webhook qaytadan o'chirildi")
+                print("Webhook qaytadan o'chirildi")
             else:
-                logger.info("Webhook to'liq o'chirildi")
+                print("Webhook to'liq o'chirildi")
                 
         except Exception as e:
-            logger.error(f"Webhook o'chirishda xatolik: {e}")
+            print(f"Webhook o'chirishda xatolik: {e}")
         
-        logger.info("Starting services...")
+        print("Starting services...")
         
         # FastAPI server'ni ishga tushirish
         port = int(os.getenv("PORT", 8000))
-        logger.info(f"Starting FastAPI server on port {port}")
         print(f"Starting FastAPI server on port {port}")
         
         # FastAPI server'ni avval to'liq ishga tushirish
@@ -112,11 +110,9 @@ async def main():
         # FastAPI server'ni background'da ishga tushirish
         async def run_fastapi():
             try:
-                logger.info("FastAPI server starting...")
                 print("FastAPI server starting...")
                 await server.serve()
             except Exception as e:
-                logger.error(f"FastAPI server xatoligi: {e}")
                 print(f"FastAPI server xatoligi: {e}")
                 raise
         
@@ -124,37 +120,35 @@ async def main():
         async def run_bot_polling():
             try:
                 # FastAPI server ishga tushish uchun kutish
-                logger.info("Waiting for FastAPI server to start...")
-                await asyncio.sleep(20)  # Ko'proq vaqt kutamiz
-                logger.info("Bot polling boshlanmoqda...")
+                print("Waiting for FastAPI server to start...")
+                await asyncio.sleep(5)  # Kamroq vaqt kutamiz
                 print("Bot polling boshlanmoqda...")
                 # Admin panel dispatcher'ini asosiy dispatcher'ga qo'shish
                 dp.include_router(admin_dp)
                 await dp.start_polling(bot)
             except Exception as e:
-                logger.error(f"Bot polling xatoligi: {e}")
                 print(f"Bot polling xatoligi: {e}")
         
         # FastAPI server'ni avval ishga tushirish
-        logger.info("Creating FastAPI task...")
+        print("Creating FastAPI task...")
         fastapi_task = asyncio.create_task(run_fastapi())
         
         # FastAPI server ishga tushish uchun kutish
-        logger.info("Waiting for FastAPI server to initialize...")
-        await asyncio.sleep(10)  # Ko'proq vaqt kutamiz
-        logger.info("FastAPI server should be ready, starting bot polling...")
+        print("Waiting for FastAPI server to initialize...")
+        await asyncio.sleep(3)  # Kamroq vaqt kutamiz
+        print("FastAPI server should be ready, starting bot polling...")
         
         # Bot polling'ni ishga tushirish
         bot_task = asyncio.create_task(run_bot_polling())
         
-        logger.info("All services started successfully")
+        print("All services started successfully")
         print("Bot va FastAPI server ishga tushdi!")
         
         # Ikkala task'ni kutish
         await asyncio.gather(fastapi_task, bot_task)
         
     except Exception as e:
-        logger.error(f"Bot ishga tushishda xatolik: {e}")
+        print(f"Bot ishga tushishda xatolik: {e}")
         print(f"Xatolik: {e}")
         raise
 
