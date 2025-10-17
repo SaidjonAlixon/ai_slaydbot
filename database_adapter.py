@@ -126,13 +126,83 @@ async def get_user_statistics(user_tg_id: int) -> Dict[str, Any]:
     return {}
 
 async def get_user_balance(user_tg_id: int) -> Dict[str, Any]:
-    return {"total_balance": 0, "cash_balance": 0, "referral_balance": 0}
+    """Foydalanuvchi balansini olish"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            cursor = await db.execute(
+                "SELECT balance FROM users WHERE user_id = ?", (str(user_tg_id),)
+            )
+            row = await cursor.fetchone()
+            
+            if row:
+                balance = row[0] or 0
+                return {
+                    "total_balance": balance,
+                    "cash_balance": balance,
+                    "referral_balance": 0
+                }
+            else:
+                return {"total_balance": 0, "cash_balance": 0, "referral_balance": 0}
+                
+    except Exception as e:
+        print(f"Balans olishda xatolik: {e}")
+        return {"total_balance": 0, "cash_balance": 0, "referral_balance": 0}
 
-async def update_user_balance(user_tg_id: int, balance_data: Dict[str, Any]):
-    pass
+async def update_user_balance(user_tg_id: int, amount: int, balance_type: str = 'cash'):
+    """Foydalanuvchi balansini yangilash"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            # Foydalanuvchini topish
+            cursor = await db.execute(
+                "SELECT * FROM users WHERE user_id = ?", (str(user_tg_id),)
+            )
+            user = await cursor.fetchone()
+            
+            if not user:
+                return False
+            
+            # Balansni yangilash (oddiy qo'shish)
+            await db.execute(
+                "UPDATE users SET balance = balance + ? WHERE user_id = ?", 
+                (amount, str(user_tg_id))
+            )
+            await db.commit()
+            return True
+            
+    except Exception as e:
+        print(f"Balans yangilashda xatolik: {e}")
+        return False
 
 async def deduct_user_balance(user_tg_id: int, amount: int) -> bool:
-    return True
+    """Foydalanuvchi balansidan ayirish"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            # Foydalanuvchini topish
+            cursor = await db.execute(
+                "SELECT balance FROM users WHERE user_id = ?", (str(user_tg_id),)
+            )
+            row = await cursor.fetchone()
+            
+            if not row:
+                return False
+            
+            current_balance = row[0] or 0
+            
+            # Balans yetarli emas
+            if current_balance < amount:
+                return False
+            
+            # Balansdan ayirish
+            await db.execute(
+                "UPDATE users SET balance = balance - ? WHERE user_id = ?", 
+                (amount, str(user_tg_id))
+            )
+            await db.commit()
+            return True
+            
+    except Exception as e:
+        print(f"Balans ayirishda xatolik: {e}")
+        return False
 
 async def create_referral(referrer_tg_id: int, referred_tg_id: int):
     pass

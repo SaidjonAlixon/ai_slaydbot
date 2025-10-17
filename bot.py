@@ -2359,9 +2359,13 @@ async def process_balance_amount(message: types.Message, state: FSMContext):
         action = data.get('balance_action')
         
         if action == "add_balance":
-            await update_user_balance(user_id, amount, 'cash')
-            action_text = "qo'shildi"
-            emoji = "✅"
+            success = await update_user_balance(user_id, amount, 'cash')
+            if success:
+                action_text = "qo'shildi"
+                emoji = "✅"
+            else:
+                action_text = "qo'shishda xatolik"
+                emoji = "❌"
         else:
             success = await deduct_user_balance(user_id, amount)
             if success:
