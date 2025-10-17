@@ -74,6 +74,25 @@ bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+# Global error handler
+@dp.error()
+async def error_handler(update: types.Update, exception: Exception):
+    """Global error handler"""
+    logging.error(f"Bot xatoligi: update={update}, exception={exception}")
+    print(f"Bot xatoligi: {exception}")
+    
+    # Agar update message bo'lsa, foydalanuvchiga xabar berish
+    if update.message:
+        try:
+            await update.message.answer(
+                "❌ Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.",
+                reply_markup=types.ReplyKeyboardRemove()
+            )
+        except Exception as e:
+            logging.error(f"Error message yuborishda xatolik: {e}")
+    
+    return True
+
 # Tariflar haqida ma'lumot
 TARIFFS = {
     "START": {
@@ -245,8 +264,9 @@ def get_back_keyboard() -> InlineKeyboardMarkup:
 @dp.message(Command("start"))
 async def start_handler(message: types.Message, state: FSMContext):
     """Bot ishga tushganda birinchi handler"""
-    if not message.from_user:
-        return
+    try:
+        if not message.from_user:
+            return
     
     # Referral havola tekshirish
     referral_id = None
@@ -295,6 +315,13 @@ async def start_handler(message: types.Message, state: FSMContext):
             reply_markup=types.ReplyKeyboardRemove()
         )
         await state.set_state(OnboardingStates.ASK_FULLNAME)
+    
+    except Exception as e:
+        logging.error(f"Start handler xatoligi: {e}")
+        await message.answer(
+            "❌ Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.",
+            reply_markup=types.ReplyKeyboardRemove()
+        )
 
 
 @dp.message(StateFilter(OnboardingStates.ASK_FULLNAME))
