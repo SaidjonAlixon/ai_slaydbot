@@ -1466,10 +1466,16 @@ async def process_first_receipt(message: types.Message, state: FSMContext):
     first_photo = message.photo[-1]
     await state.update_data(first_receipt=first_photo.file_id)
     
+    # Bekor qilish tugmasi
+    cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_receipt")]
+    ])
+    
     # Ikkinchi chek so'rash
     await message.answer(
         "Iltimos, haqiqiy chekni yuboring qaytadan!\n\n"
         "📷 Chekni qayta yuboring:",
+        reply_markup=cancel_keyboard
     )
     await state.set_state(OnboardingStates.RECEIPT_SECOND)
 
@@ -1542,6 +1548,23 @@ async def process_second_receipt(message: types.Message, state: FSMContext):
         )
     
     await state.set_state(OnboardingStates.MENU)
+
+@dp.message(StateFilter(OnboardingStates.RECEIPT_SECOND))
+async def handle_non_photo_receipt(message: types.Message, state: FSMContext):
+    """RECEIPT_SECOND holatida rasm bo'lmagan narsalar uchun"""
+    if not message.from_user:
+        return
+    
+    # Bekor qilish tugmasi
+    cancel_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_receipt")]
+    ])
+    
+    await message.answer(
+        "❌ Faqat rasm yuboring!\n\n"
+        "📷 Chekni rasm ko'rinishida yuboring yoki bekor qiling:",
+        reply_markup=cancel_keyboard
+    )
 
 @dp.callback_query(F.data == "cancel_receipt")
 async def cancel_receipt_handler(callback: types.CallbackQuery, state: FSMContext):
