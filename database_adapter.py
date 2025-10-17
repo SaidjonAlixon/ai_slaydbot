@@ -28,6 +28,7 @@ async def create_user(user_data: Dict[str, Any]) -> int:
     """Yangi foydalanuvchi yaratish (mavjud database strukturasiga mos)"""
     
     async with aiosqlite.connect(DATABASE_PATH) as db:
+        # Foydalanuvchini users jadvaliga qo'shish
         cursor = await db.execute("""
             INSERT INTO users (user_id, lang, name, phone_number, order_type, order_name, order_date)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -40,6 +41,13 @@ async def create_user(user_data: Dict[str, Any]) -> int:
             'False',
             datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         ))
+        
+        # Balans jadvaliga ham qo'shish
+        await db.execute("""
+            INSERT INTO user_balances (user_id, cash_balance, referral_balance, total_balance, created_at, updated_at)
+            VALUES (?, 0, 0, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """, (str(user_data['tg_id']),))
+        
         await db.commit()
         return cursor.lastrowid
 

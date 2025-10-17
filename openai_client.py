@@ -56,21 +56,24 @@ JSON formatida qaytaring:
 Muhim: Faqat JSON formatida javob bering, boshqa matn qo'shmang.
 """
         
-        # OpenAI API ga so'rov yuborish
-        response = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {
-                    "role": "system", 
-                    "content": "Siz professional taqdimotlar yaratish bo'yicha mutaxassissiz. Faqat JSON formatida javob bering."
-                },
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
-            ],
-            max_tokens=2000,
-            temperature=0.7
+        # OpenAI API ga so'rov yuborish (timeout bilan)
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "Siz professional taqdimotlar yaratish bo'yicha mutaxassissiz. Faqat JSON formatida javob bering."
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+                max_tokens=2000,
+                temperature=0.7
+            ),
+            timeout=30  # 30 soniya timeout
         )
         
         # Javobni olish
@@ -94,6 +97,10 @@ Muhim: Faqat JSON formatida javob bering, boshqa matn qo'shmang.
             # Fallback: oddiy kontent yaratish
             return create_fallback_content(topic, pages)
             
+    except asyncio.TimeoutError:
+        print(f"OpenAI API timeout: 30 soniya ichida javob kelmadi")
+        # Fallback: oddiy kontent yaratish
+        return create_fallback_content(topic, pages)
     except Exception as e:
         print(f"OpenAI API xatoligi: {e}")
         # Fallback: oddiy kontent yaratish
