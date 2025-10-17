@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
 from bot import dp, bot
+from admin_panel import dp as admin_dp
 from database_adapter import init_db
 
 # Windows'da Unicode belgilar uchun encoding sozlash
@@ -95,6 +96,8 @@ async def main():
             try:
                 await asyncio.sleep(10)  # FastAPI server ishga tushish uchun kutish
                 logger.info("Bot polling boshlanmoqda...")
+                # Admin panel dispatcher'ini asosiy dispatcher'ga qo'shish
+                dp.include_router(admin_dp)
                 await dp.start_polling(bot)
             except Exception as e:
                 logger.error(f"Bot polling xatoligi: {e}")
