@@ -2130,7 +2130,7 @@ async def process_user_id(message: types.Message, state: FSMContext):
                 [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_user_message")]
             ])
             
-            full_name = user.get('full_name', 'Noma\'lum')
+            full_name = user.get('name', 'Noma\'lum')
             username = user.get('username', 'Noma\'lum')
             created_at = user.get('created_at', 'Noma\'lum')
             
@@ -2314,7 +2314,7 @@ async def process_balance_user_id(message: types.Message, state: FSMContext):
                 [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_balance")]
             ])
             
-            full_name = user.get('full_name', 'Noma\'lum')
+            full_name = user.get('name', 'Noma\'lum')
             username = user.get('username', 'Noma\'lum')
             
             await message.answer(
