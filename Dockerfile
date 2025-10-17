@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# Install curl for health check
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Working directory
 WORKDIR /app
 
@@ -19,9 +22,14 @@ COPY DataBase.db* /app/
 # Set environment variables
 ENV DATABASE_PATH=/app/DataBase.db
 ENV PERSISTENT_STORAGE=true
+ENV PYTHONUNBUFFERED=1
 
-# Expose port (if needed)
+# Expose port
 EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
 CMD ["python", "main.py"]
