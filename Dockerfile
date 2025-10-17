@@ -13,8 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Copy DataBase.db to the app directory
-COPY DataBase.db /app/DataBase.db
+# Copy DataBase.db to the app directory (if exists)
+COPY DataBase.db* /app/
 
 # Set environment variables
 ENV DATABASE_PATH=/app/DataBase.db
