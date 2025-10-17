@@ -861,17 +861,7 @@ async def back_to_main_menu(message: types.Message, state: FSMContext):
     )
     await state.set_state(OnboardingStates.MENU)
 
-# Error handler
-@dp.error()
-async def error_handler(event, exception):
-    """Xatoliklar bilan ishlash"""
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    if exception:
-        logger.error(f"Admin panel xatoligi: {exception}")
-    else:
-        logger.warning("Admin panel noma'lum xatolik yuz berdi")
+# Error handler removed - using the one from bot.py
 
 if __name__ == "__main__":
     print("Admin Panel ishga tushmoqda...")
