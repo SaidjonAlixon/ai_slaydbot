@@ -220,10 +220,9 @@ def get_admin_keyboard() -> ReplyKeyboardMarkup:
         KeyboardButton(text="📊 Statistika"),
         KeyboardButton(text="💰 Balans boshqarish")
     )
-    # Uchinchi qator - 2 ta tugma
+    # Uchinchi qator - 1 ta tugma
     builder.row(
-        KeyboardButton(text="⚙️ Referral sozlamalari"),
-        KeyboardButton(text="🧪 ChatGPT Test")
+        KeyboardButton(text="⚙️ Referral sozlamalari")
     )
     # To'rtinchi qator - 1 ta tugma
     builder.row(
@@ -2409,67 +2408,7 @@ async def referral_settings_menu(message: types.Message):
         parse_mode="Markdown"
     )
 
-@dp.message(F.text == "🧪 ChatGPT Test")
-async def test_chatgpt_handler(message: types.Message, state: FSMContext):
-    """ChatGPT API test - mavzu so'rash"""
-    await message.answer(
-        "🧪 **ChatGPT API Test**\n\n"
-        "📝 **Test uchun mavzu kiriting:**\n\n"
-        "Masalan: 'O'zbekiston tarixi', 'Texnologiya', 'Biznes' va h.k.\n\n"
-        "Mavzuni yuboring va men ChatGPT API dan foydalanib test qilib beraman!",
-        reply_markup=types.ReplyKeyboardRemove()
-    )
-    await state.set_state(OnboardingStates.TEST_TOPIC)
 
-@dp.message(StateFilter(OnboardingStates.TEST_TOPIC))
-async def process_test_topic(message: types.Message, state: FSMContext):
-    """Test mavzusini qabul qilish va test qilish"""
-    if not message.text:
-        await message.answer("❌ **Iltimos, matn ko'rinishida mavzu yuboring!**")
-        return
-    
-    topic = message.text.strip()
-    await message.answer("🧪 **ChatGPT API test boshlanmoqda...**\n\n⏳ Kuting...")
-    
-    try:
-        # Test kontent yaratish
-        print(f"Test kontent yaratilmoqda: '{topic}'")
-        test_content = await generate_presentation_content(topic, 3)
-        
-        # Natijani ko'rsatish
-        result_text = "✅ **ChatGPT API test natijasi:**\n\n"
-        
-        if OPENAI_API_KEY:
-            result_text += "🤖 **Real ChatGPT API** ishlaydi!\n\n"
-        else:
-            result_text += "🧪 **Test rejimi** - API key topilmadi\n\n"
-        
-        result_text += f"📊 **Mavzu:** {topic}\n"
-        result_text += f"📄 **Sahifalar:** {len(test_content['slides'])}\n\n"
-        
-        result_text += "📋 **Yaratilgan sahifalar:**\n"
-        for i, slide in enumerate(test_content['slides']):  # Barcha sahifalarni ko'rsatish
-            result_text += f"\n**{i+1}. {slide['title']}**\n"
-            for j, content in enumerate(slide['content']):  # Barcha fikrlarni ko'rsatish
-                result_text += f"• {content}\n"
-        
-        await message.answer(
-            result_text,
-            reply_markup=get_admin_keyboard(),
-            parse_mode="Markdown"
-        )
-        
-        # State ni tozalash
-        await state.set_state(OnboardingStates.MENU)
-        
-    except Exception as e:
-        await message.answer(
-            f"❌ **Test xatoligi:**\n\n{str(e)}\n\n"
-            "Iltimos, qaytadan urinib ko'ring.",
-            reply_markup=get_admin_keyboard(),
-            parse_mode="Markdown"
-        )
-        await state.set_state(OnboardingStates.MENU)
 
 @dp.message(StateFilter(OnboardingStates.MENU), F.text == "🏠 Asosiy menyu")
 async def back_to_main_menu(message: types.Message):

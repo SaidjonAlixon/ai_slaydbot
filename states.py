@@ -13,7 +13,6 @@ class OnboardingStates(StatesGroup):
     BALANCE_AMOUNT = State()
     RECEIPT_FIRST = State()
     RECEIPT_SECOND = State()
-    TEST_TOPIC = State()
 
 class OrderStates(StatesGroup):
     """Buyurtma holatlari"""
