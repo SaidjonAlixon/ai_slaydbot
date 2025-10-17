@@ -141,7 +141,11 @@ async def confirm_referral(referrer_tg_id: int, referred_tg_id: int):
     pass
 
 async def get_referral_stats(user_tg_id: int) -> Dict[str, Any]:
-    return {}
+    return {
+        'confirmed_referrals': 0,
+        'total_referrals': 0,
+        'referral_earnings': 0
+    }
 
 async def get_user_free_orders_count(user_tg_id: int) -> int:
     return 0
