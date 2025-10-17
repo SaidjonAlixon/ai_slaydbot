@@ -1906,7 +1906,6 @@ async def broadcast_menu(message: types.Message, state: FSMContext):
     await message.answer(
         "📢 Ommaviy xabar yuborish\n\n"
         "Yubormoqchi bo'lgan xabaringizni yuboring:",
-,
         reply_markup=cancel_keyboard
     )
     await state.set_state(OnboardingStates.BROADCAST_MESSAGE)
@@ -1956,8 +1955,7 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
                 if message.text:
                     await bot.send_message(
                         chat_id=int(user['user_id']),
-                        text=message.text,
- if "" in message.text else None
+                        text=message.text if "" in message.text else None
                     )
                 # Agar xabar forward qilingan bo'lsa
                 elif message.forward_from or message.forward_from_chat:
@@ -2087,7 +2085,6 @@ async def send_to_user_menu(message: types.Message, state: FSMContext):
     await message.answer(
         "💬 Bir kishiga xabar yuborish\n\n"
         "Foydalanuvchi ID sini kiriting:",
-,
         reply_markup=cancel_keyboard
     )
     await state.set_state(OnboardingStates.USER_ID_INPUT)
@@ -2120,7 +2117,6 @@ async def process_user_id(message: types.Message, state: FSMContext):
                 f"📱 Username: @{username}\n"
                 f"📅 Qo'shilgan: {created_at}\n\n"
                 f"Yubormoqchi bo'lgan xabaringizni yuboring:",
-,
                 reply_markup=cancel_keyboard
             )
             await state.set_state(OnboardingStates.USER_MESSAGE)
@@ -2154,8 +2150,7 @@ async def process_user_message(message: types.Message, state: FSMContext):
         if message.text:
             await bot.send_message(
                 chat_id=target_user_id,
-                text=message.text,
- if "" in message.text else None
+                text=message.text if "" in message.text else None
             )
         # Agar xabar forward qilingan bo'lsa
         elif message.forward_from or message.forward_from_chat:
@@ -2271,7 +2266,6 @@ async def balance_management_menu(message: types.Message, state: FSMContext):
     await message.answer(
         "💰 Balans boshqarish\n\n"
         "Foydalanuvchi ID sini kiriting:",
-,
         reply_markup=cancel_keyboard
     )
     await state.set_state(OnboardingStates.BALANCE_USER_ID)
@@ -2305,7 +2299,6 @@ async def process_balance_user_id(message: types.Message, state: FSMContext):
                 f"📱 Username: @{username}\n"
                 f"💳 Joriy balans: {balance['total_balance']:,} so'm\n\n"
                 f"Balans boshqarish uchun amalni tanlang:",
-,
                 reply_markup=balance_keyboard
             )
             await state.set_state(OnboardingStates.BALANCE_ACTION)
