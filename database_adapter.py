@@ -316,18 +316,43 @@ async def add_transaction(user_tg_id: int, amount: int, transaction_type: str, d
 
 async def get_referral_rewards() -> Dict[str, int]:
     """Referral bonuslarini olish"""
-    return {
-        'referrer_reward': 1000,  # Taklif qiluvchi uchun bonus
-        'referred_reward': 500    # Taklif qilingan uchun bonus
-    }
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            cursor = await db.execute(
+                "SELECT referrer_reward, referred_reward FROM referral_settings ORDER BY id DESC LIMIT 1"
+            )
+            row = await cursor.fetchone()
+            
+            if row:
+                return {
+                    'referrer_reward': row[0],
+                    'referred_reward': row[1]
+                }
+            else:
+                # Agar jadval bo'sh bo'lsa, default qiymatlarni qaytarish
+                return {
+                    'referrer_reward': 1000,
+                    'referred_reward': 500
+                }
+    except Exception as e:
+        print(f"Referral bonuslarini olishda xatolik: {e}")
+        return {
+            'referrer_reward': 1000,
+            'referred_reward': 500
+        }
 
 async def update_referral_rewards(referrer_amount: int, referred_amount: int) -> bool:
     """Referral bonuslarini yangilash"""
     try:
-        # Hozircha oddiy fayl yoki database da saqlash
-        # Kelajakda database jadvaliga qo'shish mumkin
-        print(f"Referral bonuslar yangilandi: taklif qilgan={referrer_amount}, taklif qilingan={referred_amount}")
-        return True
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            # Yangi qator qo'shish
+            await db.execute(
+                "INSERT INTO referral_settings (referrer_reward, referred_reward, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                (referrer_amount, referred_amount)
+            )
+            await db.commit()
+            print(f"Referral bonuslar yangilandi: taklif qilgan={referrer_amount}, taklif qilingan={referred_amount}")
+            return True
     except Exception as e:
         print(f"Referral bonuslarini yangilashda xatolik: {e}")
         return False
