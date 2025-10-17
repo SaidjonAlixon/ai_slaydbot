@@ -13,8 +13,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Copy DataBase.db to the app directory
+COPY DataBase.db /app/DataBase.db
+
 # Set environment variables
-ENV DATABASE_PATH=/app/data/bot.db
+ENV DATABASE_PATH=/app/DataBase.db
 ENV PERSISTENT_STORAGE=true
 
 # Expose port (if needed)

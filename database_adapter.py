@@ -86,7 +86,10 @@ async def init_db():
         users = await get_all_users()
         print(f"Oxirgi 5 ta foydalanuvchi:")
         for i, user in enumerate(users[:5], 1):
-            print(f"  {i}. ID: {user['user_id']}, Ism: {user['name']}, Telefon: {user['phone_number']}")
+            # Unicode belgilarni to'g'ri ko'rsatish
+            name = user['name'].encode('utf-8', errors='ignore').decode('utf-8')
+            phone = user['phone_number'].encode('utf-8', errors='ignore').decode('utf-8')
+            print(f"  {i}. ID: {user['user_id']}, Ism: {name}, Telefon: {phone}")
 
 # Boshqa funksiyalar uchun placeholder'lar
 async def create_order(order_data: Dict[str, Any]) -> int:

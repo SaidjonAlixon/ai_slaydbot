@@ -10,6 +10,6 @@ restartPolicyMaxRetries = 10
 
 [environments.production]
 variables = { 
-    DATABASE_PATH = "/app/data/bot.db",
+    DATABASE_PATH = "/app/DataBase.db",
     PERSISTENT_STORAGE = "true"
 }
