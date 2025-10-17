@@ -34,10 +34,7 @@ app = FastAPI(title="Telegram Bot API", version="1.0.0")
 @app.get("/health")
 async def health_check():
     """Healthcheck endpoint Railway uchun"""
-    return JSONResponse(
-        status_code=200,
-        content={"status": "healthy", "service": "telegram-bot"}
-    )
+    return {"status": "healthy", "service": "telegram-bot"}
 
 @app.get("/")
 async def root():
@@ -88,6 +85,11 @@ async def main():
         
         print("Bot polling rejimida ishga tushmoqda...")
         
+        # FastAPI server'ni ishga tushirish
+        port = int(os.getenv("PORT", 8000))
+        config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+        server = uvicorn.Server(config)
+        
         # Bot polling'ni background task sifatida ishga tushirish
         async def run_bot_polling():
             try:
@@ -96,13 +98,7 @@ async def main():
                 logger.error(f"Bot polling xatoligi: {e}")
                 print(f"Bot polling xatoligi: {e}")
         
-        # Bot polling'ni background task sifatida ishga tushirish
         bot_task = asyncio.create_task(run_bot_polling())
-        
-        # FastAPI server'ni ishga tushirish
-        port = int(os.getenv("PORT", 8000))
-        config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
-        server = uvicorn.Server(config)
         
         # FastAPI server va bot polling'ni parallel ishga tushirish
         await asyncio.gather(server.serve(), bot_task)
