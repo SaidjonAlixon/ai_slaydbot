@@ -13,7 +13,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.exceptions import TelegramBadRequest
 
-from database import (
+from database_adapter import (
     get_all_users, get_user_by_tg_id, get_user_statistics, 
     get_user_balance, update_user_balance, deduct_user_balance,
     get_referral_stats, add_transaction, log_action,

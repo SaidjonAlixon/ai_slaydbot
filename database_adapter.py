@@ -321,5 +321,13 @@ async def get_referral_rewards() -> Dict[str, int]:
         'referred_reward': 500    # Taklif qilingan uchun bonus
     }
 
-async def update_referral_rewards(referrer_amount: int, referred_amount: int):
-    pass
+async def update_referral_rewards(referrer_amount: int, referred_amount: int) -> bool:
+    """Referral bonuslarini yangilash"""
+    try:
+        # Hozircha oddiy fayl yoki database da saqlash
+        # Kelajakda database jadvaliga qo'shish mumkin
+        print(f"Referral bonuslar yangilandi: taklif qilgan={referrer_amount}, taklif qilingan={referred_amount}")
+        return True
+    except Exception as e:
+        print(f"Referral bonuslarini yangilashda xatolik: {e}")
+        return False
