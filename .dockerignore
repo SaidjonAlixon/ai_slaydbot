@@ -24,7 +24,8 @@ coverage.xml
 # Local database files
 bot.db
 bot.db-journal
-*.db
+# DataBase.db is needed for production
+# *.db
 *.db-journal
 
 # IDE files
