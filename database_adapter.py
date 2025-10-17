@@ -17,6 +17,14 @@ async def get_user_by_tg_id(tg_id: int) -> Optional[Dict[str, Any]]:
             "SELECT * FROM users WHERE user_id = ?", (str(tg_id),)
         )
         row = await cursor.fetchone()
+        if row:
+            return dict(row)
+        
+        # Agar user_id ustunida topilmasa, tg_id ustunini ham tekshirish
+        cursor = await db.execute(
+            "SELECT * FROM users WHERE tg_id = ?", (tg_id,)
+        )
+        row = await cursor.fetchone()
         return dict(row) if row else None
 
 async def create_user(user_data: Dict[str, Any]) -> int:
