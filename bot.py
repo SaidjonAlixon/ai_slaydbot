@@ -170,28 +170,27 @@ async def send_presentation_to_admin_group(user_tg_id: int, topic: str, pages: i
         input_file = FSInputFile(file_path, filename=filename)
         
         # Xavfsiz matn tayyorlash
-        safe_full_name = str(user.get('full_name', 'Noma\'lum')).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
-        safe_username = str(user.get('username', 'Noma\'lum')).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
-        safe_topic = str(topic).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
-        safe_tariff_name = str(tariff_info['name']).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
-        safe_filename = str(filename).replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace(']', '\\]').replace('`', '\\`')
+        safe_full_name = str(user.get('full_name', 'Noma\'lum'))
+        safe_username = str(user.get('username', 'Noma\'lum'))
+        safe_topic = str(topic)
+        safe_tariff_name = str(tariff_info['name'])
+        safe_filename = str(filename)
         
         await bot.send_document(
             chat_id=group_id,
             document=input_file,
-            caption=f"📊 **Yangi taqdimot tayyorlandi\\!**\n\n"
-                   f"👤 **Foydalanuvchi:** {safe_full_name}\n"
-                   f"🆔 **ID:** {user_tg_id}\n"
-                   f"📱 **Username:** @{safe_username}\n\n"
-                   f"📋 **Taqdimot ma'lumotlari:**\n"
-                   f"• **Mavzu:** {safe_topic}\n"
-                   f"• **Sahifalar:** {pages} ta\n"
-                   f"• **Tarif:** {safe_tariff_name}\n"
-                   f"• **Narx:** {total_price:,} so'm\n\n"
-                   f"💰 **Foydalanuvchi balansi:** {balance['total_balance']:,} so'm\n"
-                   f"📅 **Tayyorlangan vaqt:** {format_time()}\n\n"
-                   f"📁 **Fayl:** {safe_filename}",
-            parse_mode="Markdown"
+            caption=f"📊 Yangi taqdimot tayyorlandi!\n\n"
+                   f"👤 Foydalanuvchi: {safe_full_name}\n"
+                   f"🆔 ID: {user_tg_id}\n"
+                   f"📱 Username: @{safe_username}\n\n"
+                   f"📋 Taqdimot ma'lumotlari:\n"
+                   f"• Mavzu: {safe_topic}\n"
+                   f"• Sahifalar: {pages} ta\n"
+                   f"• Tarif: {safe_tariff_name}\n"
+                   f"• Narx: {total_price:,} so'm\n\n"
+                   f"💰 Foydalanuvchi balansi: {balance['total_balance']:,} so'm\n"
+                   f"📅 Tayyorlangan vaqt: {format_time()}\n\n"
+                   f"📁 Fayl: {safe_filename}"
         )
         
         # Log qilish
@@ -394,7 +393,7 @@ async def finish_registration(message: types.Message, state: FSMContext):
     
     # Agar referral tasdiqlangan bo'lsa
     if referral_confirmed:
-        welcome_text += "🎁 **Bonus:** Sizga referral bonus sifatida 500 so'm qo'shildi!\n\n"
+        welcome_text += "🎁 Bonus: Sizga referral bonus sifatida 500 so'm qo'shildi!\n\n"
     
     welcome_text += "Quyidagi tugmalardan birini tanlang:"
     
@@ -410,11 +409,10 @@ async def finish_registration(message: types.Message, state: FSMContext):
 async def start_presentation_order(message: types.Message, state: FSMContext):
     """Taqdimot buyurtmasini boshlash"""
     await message.answer(
-        "📊 **Taqdimot tayyorlash** xizmati:\n\n"
+        "📊 Taqdimot tayyorlash xizmati:\n\n"
         "AI yordamida professional taqdimotlar tayyorlab beramiz!\n\n"
         "Quyidagi tariflardan birini tanlang:",
-        reply_markup=get_tariff_keyboard(),
-        parse_mode="Markdown"
+        reply_markup=get_tariff_keyboard()
     )
 
 
@@ -427,8 +425,8 @@ async def process_topic(message: types.Message, state: FSMContext):
     words = topic.split()
     if len(words) < 2 or len(topic) < 10:
         await message.answer(
-            "❌ **Mavzu nomini to'liq va aniq kiriting!**\n\n"
-            "**Misol:**\n"
+            "❌ Mavzu nomini to'liq va aniq kiriting!\n\n"
+            "Misol:\n"
             "Interstellar - kino haqida ✅\n"
             "Interstellar ❌"
         )
@@ -437,18 +435,17 @@ async def process_topic(message: types.Message, state: FSMContext):
     await state.update_data(topic=topic)
     
     await message.answer(
-        f"✅ **Mavzu nomini qabul qilib oldim!**\n\n"
-        f"Mavzu: **{topic}**\n\n"
-        "Endi esa **sahifalar sonini kiriting:**\n\n"
-        "**Misol:**\n"
+        f"✅ Mavzu nomini qabul qilib oldim!\n\n"
+        f"Mavzu: {topic}\n\n"
+        "Endi esa sahifalar sonini kiriting:\n\n"
+        "Misol:\n"
         "10 ✅\n"
         "10-12 ❌\n"
         "14ta ❌\n"
         "Yigirma ❌\n"
         "Yigirma ikkita ❌\n"
         "O'n sakkiz sahifali ❌\n\n"
-        "⚠️ **Eslatma:** 1-4 raqamlar qabul qilinmaydi!",
-        parse_mode="Markdown"
+        "⚠️ Eslatma: 1-4 raqamlar qabul qilinmaydi!"
     )
     await state.set_state(OrderStates.ASK_PAGES)
 
@@ -462,14 +459,14 @@ async def process_pages(message: types.Message, state: FSMContext):
         # 1-4 raqamlar qabul qilinmaydi
         if pages >= 1 and pages <= 4:
             await message.answer(
-                "❌ **Bu qiymatdagi taqdimotni tayyorlash imkonsiz!**\n\n"
+                "❌ Bu qiymatdagi taqdimotni tayyorlash imkonsiz!\n\n"
                 "5 va undan yuqori raqam kiriting:"
             )
             return
         
         if pages < 5 or pages > 50:
             await message.answer(
-                "❌ **Noto'g'ri raqam!**\n\n"
+                "❌ Noto'g'ri raqam!\n\n"
                 "5-50 orasida raqam kiriting:"
             )
             return
@@ -485,12 +482,12 @@ async def process_pages(message: types.Message, state: FSMContext):
         
         # Yakuniy buyurtma ma'lumotlari
         confirmation_text = (
-            f"✅ **Javoblarni qabul qildim!**\n\n"
-            f"**Sizning yakuniy buyurtmangiz quyidagicha ko'rinishda:**\n\n"
-            f"📊 **Mavzu nomi:** {topic}\n"
-            f"📄 **Sahifalar soni:** {pages} ta\n"
-            f"👤 **Talaba:** {user_name}\n\n"
-            f"❓ **Buyurtmani tasdiqlaysizmi?**"
+            f"✅ Javoblarni qabul qildim!\n\n"
+            f"Sizning yakuniy buyurtmangiz quyidagicha ko'rinishda:\n\n"
+            f"📊 Mavzu nomi: {topic}\n"
+            f"📄 Sahifalar soni: {pages} ta\n"
+            f"👤 Talaba: {user_name}\n\n"
+            f"❓ Buyurtmani tasdiqlaysizmi?"
         )
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -500,15 +497,14 @@ async def process_pages(message: types.Message, state: FSMContext):
         
         await message.answer(
             confirmation_text,
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            reply_markup=keyboard
         )
         await state.set_state(OrderStates.CONFIRM_1)
         
     except ValueError:
         await message.answer(
-            "❌ **Faqat raqam kiriting!**\n\n"
-            "**Misol:**\n"
+            "❌ Faqat raqam kiriting!\n\n"
+            "Misol:\n"
             "10 ✅\n"
             "10-12 ❌\n"
             "14ta ❌"
@@ -520,7 +516,7 @@ async def process_pages(message: types.Message, state: FSMContext):
 async def about_bot(message: types.Message):
     """Bot haqida ma'lumot"""
     about_text = (
-        "🤖 **PresentatsiyaUz Bot haqida:**\n\n"
+        "🤖 PresentatsiyaUz Bot haqida:\n\n"
         "Biz \"PresentatsiyaUz\" jamoasi 5 yildan buyon nafaqat O'zbekiston balki, "
         "MDH mamlakatlari talabalariga ham xizmat ko'rsatib kelmoqdamiz.\n\n"
         "Bu bot bizning barcha xizmatlarimizni faqat elektron shaklda taqdim etadi, "
@@ -529,7 +525,7 @@ async def about_bot(message: types.Message):
         "Agar siz botni tushunishda muammolarga duch kelsangiz yoki narxlar bilan "
         "bog'liq muammolarga duch kelsangiz, \"Aloqa uchun\" tugmasi orqali "
         "administratorlardan buyurtma bering!\n\n"
-        "💳 **To'lov kartalari:**\n"
+        "💳 To'lov kartalari:\n"
         "• Uzcard: 5614682110523232\n"
         "• Humo: 9860170104108668\n"
         "• VISA: 4023060518185649\n"
@@ -556,7 +552,7 @@ async def about_bot(message: types.Message):
 async def independent_works(message: types.Message):
     """Mustaqil ishlar tayyorlash"""
     works_text = (
-        "📝 **Mustaqil ishlar tayyorlash:**\n\n"
+        "📝 Mustaqil ishlar tayyorlash:\n\n"
         "Professional mustaqil ishlarni tayyorlab beramiz!\n\n"
         "Quyidagi xizmatlardan birini tanlang:"
     )
@@ -570,14 +566,14 @@ async def independent_works(message: types.Message):
         [InlineKeyboardButton(text="📊 Hisobot tayyorlash", callback_data="report")]
     ])
     
-    await message.answer(works_text, reply_markup=keyboard, parse_mode="Markdown")
+    await message.answer(works_text, reply_markup=keyboard)
 
 
 @dp.message(StateFilter(OnboardingStates.MENU), F.text == "🔧 Boshqa xizmatlar")
 async def other_services(message: types.Message):
     """Boshqa xizmatlar"""
     services_text = (
-        "🔧 **Boshqa xizmatlar:**\n\n"
+        "🔧 Boshqa xizmatlar:\n\n"
         "Professional dizayn va yozuv xizmatlarini taklif etamiz!\n\n"
         "Quyidagi xizmatlardan birini tanlang:"
     )
@@ -597,17 +593,17 @@ async def other_services(message: types.Message):
 async def magic_game(message: types.Message):
     """Sehrli o'yin - Akinator"""
     game_text = (
-        "🎮 **Sehrli o'yin - Akinator**\n\n"
+        "🎮 Sehrli o'yin - Akinator\n\n"
         "Men sizning fikringizni o'qib, siz haqingizda aytaman!\n\n"
-        "🤔 **Akinator nima?**\n"
+        "🤔 Akinator nima?\n"
         "Bu mashhur o'yin sizning fikringizdagi shaxs, hayvon yoki narsani "
         "faqat savollar berish orqali aniqlaydi!\n\n"
-        "🎯 **Qanday o'ynaydi:**\n"
+        "🎯 Qanday o'ynaydi:\n"
         "1. Siz biror kishi, hayvon yoki narsa haqida o'ylang\n"
         "2. Akinator sizga savollar beradi\n"
         "3. Siz \"Ha\", \"Yo'q\" yoki \"Ehtimol\" javob bering\n"
         "4. Akinator sizning fikringizni aniqlaydi!\n\n"
-        "🚀 **O'yinni boshlash uchun tugmani bosing!**"
+        "🚀 O'yinni boshlash uchun tugmani bosing!"
     )
     
     # Akinator mini app tugmasi
@@ -618,7 +614,7 @@ async def magic_game(message: types.Message):
         )]
     ])
     
-    await message.answer(game_text, reply_markup=keyboard, parse_mode="Markdown")
+    await message.answer(game_text, reply_markup=keyboard)
 
 
 @dp.message(StateFilter(OnboardingStates.MENU), F.text == "💰 Balansim")
@@ -643,16 +639,16 @@ async def my_balance(message: types.Message):
     
     current_time = format_time()
     balance_text = (
-        f"💰 **Sizning balansingiz:**\n\n"
-        f"💳 **Umumiy balans:** {balance['total_balance']:,} so'm\n\n"
-        f"📊 **Balans tafsilotlari:**\n"
+        f"💰 Sizning balansingiz:\n\n"
+        f"💳 Umumiy balans: {balance['total_balance']:,} so'm\n\n"
+        f"📊 Balans tafsilotlari:\n"
         f"• Naqt orqali to'langan: {balance['cash_balance']:,} so'm\n"
         f"• {referral_stats['confirmed_referrals']} ta taklif uchun: {balance['referral_balance']:,} so'm\n\n"
-        f"📈 **Statistika:**\n"
+        f"📈 Statistika:\n"
         f"• Yaratilgan taqdimotlar: {stats.get('total_presentations', 0)}\n"
         f"• So'nggi faollik: {stats.get('last_activity', 'Hali yoq')}\n"
         f"• Qo'shilgan sana: {user.get('created_at', 'Nomalum')}\n\n"
-        f"🕐 **Oxirgi yangilanish:** {current_time}"
+        f"🕐 Oxirgi yangilanish: {current_time}"
     )
     
     # Balans tugmalari
@@ -662,7 +658,7 @@ async def my_balance(message: types.Message):
         [InlineKeyboardButton(text="📊 Referral statistikasi", callback_data="referral_stats")]
     ])
     
-    await message.answer(balance_text, reply_markup=keyboard, parse_mode="Markdown")
+    await message.answer(balance_text, reply_markup=keyboard)
 
 
 @dp.message(StateFilter(OnboardingStates.MENU), F.text == "📞 Aloqa uchun")
@@ -677,12 +673,12 @@ async def contact_us(message: types.Message):
     ])
     
     contact_text = (
-        "📞 **Biz bilan bog'laning:**\n\n"
+        "📞 Biz bilan bog'laning:\n\n"
         "Quyidagi adminlar bilan bog'laning:\n\n"
-        "🕐 **Ish vaqti:**\n"
+        "🕐 Ish vaqti:\n"
         "Dushanba - Juma: 09:00 - 18:00\n"
         "Shanba - Yakshanba: 10:00 - 16:00\n\n"
-        "❓ **Savollar bormi?**\n"
+        "❓ Savollar bormi?\n"
         "Har qanday savol va takliflar uchun adminlardan biriga yozing!"
     )
     
@@ -698,15 +694,15 @@ async def user_stats(message: types.Message):
     stats = await get_user_statistics(message.from_user.id)
     
     stats_text = (
-        f"📊 **Sizning statistikangiz:**\n\n"
-        f"📈 **Umumiy ko'rsatkichlar:**\n"
+        f"📊 Sizning statistikangiz:\n\n"
+        f"📈 Umumiy ko'rsatkichlar:\n"
         f"• Yaratilgan taqdimotlar: {stats.get('total_presentations', 0)}\n"
         f"• Faol kunlar: {stats.get('active_days', 0)}\n"
         f"• So'nggi faollik: {stats.get('last_activity', 'Hali yoq')}\n\n"
-        f"🎯 **Faoliyat:**\n"
+        f"🎯 Faoliyat:\n"
         f"• Bu oy: {stats.get('this_month', 0)} ta taqdimot\n"
         f"• O'tgan oy: {stats.get('last_month', 0)} ta taqdimot\n\n"
-        f"💡 **Maslahat:** Ko'proq taqdimot yaratib, tajribangizni oshiring!"
+        f"💡 Maslahat: Ko'proq taqdimot yaratib, tajribangizni oshiring!"
     )
     
     await message.answer(stats_text, parse_mode="Markdown")
@@ -720,10 +716,9 @@ async def admin_panel(message: types.Message, state: FSMContext):
         return
     
     await message.answer(
-        "🔧 **Admin Panel**\n\n"
+        "🔧 Admin Panel\n\n"
         "Quyidagi funksiyalardan birini tanlang:",
         reply_markup=get_admin_keyboard(),
-        parse_mode="Markdown"
     )
     await state.set_state(OnboardingStates.MENU)
 
@@ -744,26 +739,26 @@ async def process_tariff_selection(callback: types.CallbackQuery, state: FSMCont
         
         if remaining_free > 0:
             start_text = (
-                f"🚀 **Start tarifini tanladingiz!**\n\n"
-                f"Ushbu tarifdan foydalanish **{remaining_free} marta** bepul qoldi! "
-                f"\\(siz allaqachon {free_orders_count} marta foydalangansiz\\)\n\n"
-                f"Bepul buyurtmalar tugagach, har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz\\.\n"
-                f"Format: **PPT**\n\n"
-                f"Endi esa **Mavzu nomini to'liq va aniq kiriting:**\n\n"
-                f"**Misol:**\n"
-                f"Interstellar \\- kino haqida ✅\n"
+                f"🚀 Start tarifini tanladingiz!\n\n"
+                f"Ushbu tarifdan foydalanish {remaining_free} marta bepul qoldi! "
+                f"(siz allaqachon {free_orders_count} marta foydalangansiz)\n\n"
+                f"Bepul buyurtmalar tugagach, har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz.\n"
+                f"Format: PPT\n\n"
+                f"Endi esa mavzu nomini to'liq va aniq kiriting:\n\n"
+                f"Misol:\n"
+                f"Interstellar - kino haqida ✅\n"
                 f"Interstellar ❌"
             )
         else:
             start_text = (
-                f"🚀 **Start tarifini tanladingiz!**\n\n"
-                f"⚠️ **Bepul buyurtmalar tugadi!** "
-                f"Siz allaqachon 1 marta bepul foydalangansiz\\.\n\n"
-                f"Endi har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz\\.\n"
-                f"Format: **PPT**\n\n"
-                f"Endi esa **Mavzu nomini to'liq va aniq kiriting:**\n\n"
-                f"**Misol:**\n"
-                f"Interstellar \\- kino haqida ✅\n"
+                f"🚀 Start tarifini tanladingiz!\n\n"
+                f"⚠️ Bepul buyurtmalar tugadi! "
+                f"Siz allaqachon 1 marta bepul foydalangansiz.\n\n"
+                f"Endi har bir sahifasi uchun {tariff_info['price_per_page']:,} so'mdan to'laysiz.\n"
+                f"Format: PPT\n\n"
+                f"Endi esa mavzu nomini to'liq va aniq kiriting:\n\n"
+                f"Misol:\n"
+                f"Interstellar - kino haqida ✅\n"
                 f"Interstellar ❌"
             )
     else:
@@ -775,21 +770,20 @@ async def process_tariff_selection(callback: types.CallbackQuery, state: FSMCont
             format_text = "PPT"
             
         # Markdown'da maxsus belgilarni escape qilish
-        tariff_name = tariff_info['name'].replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace('`', '\\`')
-        format_name = format_text.replace('*', '\\*').replace('_', '\\_').replace('[', '\\[').replace('`', '\\`')
+        tariff_name = tariff_info['name'].replace('*', '*').replace('_', '_').replace('[', '[').replace('`', '`')
+        format_name = format_text.replace('*', '*').replace('_', '_').replace('[', '[').replace('`', '`')
         
         start_text = (
-            f"💰 **{tariff_name}ni tanladingiz!**\n\n"
-            f"Format: **{format_name}**\n\n"
-            f"Endi esa **Mavzu nomini to'liq va aniq kiriting:**\n\n"
-            f"**Misol:**\n"
-            f"Interstellar \\- kino haqida ✅\n"
+            f"💰 {tariff_name}ni tanladingiz!\n\n"
+            f"Format: {format_name}\n\n"
+            f"Endi esa Mavzu nomini to'liq va aniq kiriting:\n\n"
+            f"Misol:\n"
+            f"Interstellar - kino haqida ✅\n"
             f"Interstellar ❌"
         )
     
     await callback.message.edit_text(
         start_text,
-        parse_mode="Markdown"
     )
     
     await callback.answer()
@@ -800,7 +794,7 @@ async def process_tariff_selection(callback: types.CallbackQuery, state: FSMCont
 async def back_to_menu(callback: types.CallbackQuery, state: FSMContext):
     """Asosiy menyuga qaytish"""
     await callback.message.edit_text(
-        "🏠 **Asosiy menyu**\n\n"
+        "🏠 Asosiy menyu\n\n"
         "Quyidagi tugmalardan birini tanlang:",
         reply_markup=None
     )
@@ -834,12 +828,11 @@ async def confirm_preview(callback: types.CallbackQuery, state: FSMContext):
     order_id = await create_order(order_data)
     
     await callback.message.edit_text(
-        "🎉 **Buyurtma tasdiqlandi!**\n\n"
+        "🎉 Buyurtma tasdiqlandi!\n\n"
         "🚀 Taqdimot yaratish jarayoni boshlandi...\n"
         "⏱️ Tahmini vaqt: 2-3 daqiqa\n\n"
         "📱 Tayyor bo'lganda sizga xabar beramiz!",
         reply_markup=get_back_keyboard(),
-        parse_mode="Markdown"
     )
     
     await state.set_state(OnboardingStates.MENU)
@@ -872,18 +865,18 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
         
         if remaining_free > 0:
             second_confirmation_text = (
-                f"🔒 **Ikkinchi tasdiqlash bosqichi**\n\n"
-                f"Siz bepul obunada **{free_orders + 1}-chi** buyurtmani amalga oshirmoqdasiz, "
-                f"sizda yana **{remaining_free - 1} ta** bepul taqdimot tayyorlash imkoni qolmoqda!\n\n"
-                f"**Buyurtmangizni 100% tasdiqlashga imkoningiz komilmi?**"
+                f"🔒 Ikkinchi tasdiqlash bosqichi\n\n"
+                f"Siz bepul obunada {free_orders + 1}-chi buyurtmani amalga oshirmoqdasiz, "
+                f"sizda yana {remaining_free - 1} ta bepul taqdimot tayyorlash imkoni qolmoqda!\n\n"
+                f"Buyurtmangizni 100% tasdiqlashga imkoningiz komilmi?"
             )
         else:
             second_confirmation_text = (
-                f"🔒 **Ikkinchi tasdiqlash bosqichi**\n\n"
-                f"⚠️ **Bepul buyurtmalar tugadi!** "
+                f"🔒 Ikkinchi tasdiqlash bosqichi\n\n"
+                f"⚠️ Bepul buyurtmalar tugadi! "
                 f"Siz allaqachon 1 marta bepul foydalangansiz.\n\n"
-                f"Bu buyurtma uchun **{pages * tariff_info['price_per_page']:,} so'm** to'lashingiz kerak.\n\n"
-                f"**Buyurtmangizni 100% tasdiqlashga imkoningiz komilmi?**"
+                f"Bu buyurtma uchun {pages * tariff_info['price_per_page']:,} so'm to'lashingiz kerak.\n\n"
+                f"Buyurtmangizni 100% tasdiqlashga imkoningiz komilmi?"
             )
     else:
         # Premium tariflar uchun
@@ -891,12 +884,12 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
         total_price = pages * tariff_info['price_per_page']
         
         second_confirmation_text = (
-            f"💰 **To'lov ma'lumotlari:**\n\n"
-            f"Siz **{data['topic']}** mavzusida **{pages} ta** sahifali taqdimot "
+            f"💰 To'lov ma'lumotlari:\n\n"
+            f"Siz {data['topic']} mavzusida {pages} ta sahifali taqdimot "
             f"buyurtma qilyapsiz va uning narxi "
-            f"**({pages} × {tariff_info['price_per_page']:,} = {total_price:,} so'm)** "
-            f"**{total_price:,} so'm** bo'ldi.\n\n"
-            f"❓ **Buyurtmani tasdiqlaysizmi?**"
+            f"({pages} × {tariff_info['price_per_page']:,} = {total_price:,} so'm) "
+            f"{total_price:,} so'm bo'ldi.\n\n"
+            f"❓ Buyurtmani tasdiqlaysizmi?"
         )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -907,7 +900,6 @@ async def confirm_order(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         second_confirmation_text,
         reply_markup=keyboard,
-        parse_mode="Markdown"
     )
     await state.set_state(OrderStates.CONFIRM_2)
 
@@ -928,24 +920,24 @@ async def confirm_final_order(callback: types.CallbackQuery, state: FSMContext):
         
         if remaining_free > 0:
             final_text = (
-                f"🔒 **Yakuniy tasdiqlash:**\n\n"
+                f"🔒 Yakuniy tasdiqlash:\n\n"
                 f"Siz buyurtmani tasdiqladingiz, ishonch va xavfsizlik uchun uni yana tasdiqlashingizni "
                 f"va bu ishni o'zingiz onli ravishda bajarishingizni so'rayman.\n\n"
-                f"Bu sizning **{free_orders + 1}-chi** bepul buyurtmangiz bo'ladi.\n"
-                f"Agar hozir yana bir bor, **Ha✅**ni bossangiz taqdimot tayyorlash jarayoni boshlanadi.\n\n"
-                f"**Tanlang:**"
+                f"Bu sizning {free_orders + 1}-chi bepul buyurtmangiz bo'ladi.\n"
+                f"Agar hozir yana bir bor, Ha✅ni bossangiz taqdimot tayyorlash jarayoni boshlanadi.\n\n"
+                f"Tanlang:"
             )
         else:
             tariff_info = TARIFFS[tariff_key]
             total_price = pages * tariff_info['price_per_page']
             final_text = (
-                f"🔒 **Yakuniy tasdiqlash:**\n\n"
+                f"🔒 Yakuniy tasdiqlash:\n\n"
                 f"Siz buyurtmani tasdiqladingiz, ishonch va xavfsizlik uchun uni yana tasdiqlashingizni "
                 f"va bu ishni o'zingiz onli ravishda bajarishingizni so'rayman.\n\n"
-                f"⚠️ **Bepul buyurtmalar tugadi!** "
-                f"Agar hozir yana bir bor, **Ha✅**ni bossangiz hisobingizdan "
-                f"**{total_price:,} so'm** mablag' yechib olaman.\n\n"
-                f"**Tanlang:**"
+                f"⚠️ Bepul buyurtmalar tugadi! "
+                f"Agar hozir yana bir bor, Ha✅ni bossangiz hisobingizdan "
+                f"{total_price:,} so'm mablag' yechib olaman.\n\n"
+                f"Tanlang:"
             )
     else:
         # Premium tariflar uchun
@@ -953,12 +945,12 @@ async def confirm_final_order(callback: types.CallbackQuery, state: FSMContext):
         total_price = pages * tariff_info['price_per_page']
         
         final_text = (
-            f"🔒 **Yakuniy tasdiqlash:**\n\n"
+            f"🔒 Yakuniy tasdiqlash:\n\n"
             f"Siz buyurtmani tasdiqladingiz, ishonch va xavfsizlik uchun uni yana tasdiqlashingizni "
             f"va bu ishni o'zingiz onli ravishda bajarishingizni so'rayman.\n\n"
-            f"Agar hozir yana bir bor, **Ha✅**ni bossangiz hisobingizdan "
-            f"**{total_price:,} so'm** mablag' yechib olaman.\n\n"
-            f"**Tanlang:**"
+            f"Agar hozir yana bir bor, Ha✅ni bossangiz hisobingizdan "
+            f"{total_price:,} so'm mablag' yechib olaman.\n\n"
+            f"Tanlang:"
         )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -969,7 +961,6 @@ async def confirm_final_order(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         final_text,
         reply_markup=keyboard,
-        parse_mode="Markdown"
     )
 
 
@@ -980,10 +971,9 @@ async def cancel_confirmation(callback: types.CallbackQuery, state: FSMContext):
     
     if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
         await callback.message.edit_text(
-            "❌ **Buyurtma bekor qilindi.**\n\n"
+            "❌ Buyurtma bekor qilindi.\n\n"
             "Agar fikringizni o'zgartirsangiz, qaytadan 'Taqdimot tayyorlash' tugmasini bosing.",
             reply_markup=get_back_keyboard(),
-            parse_mode="Markdown"
         )
 
 
@@ -1017,13 +1007,12 @@ async def start_presentation_generation(callback: types.CallbackQuery, state: FS
                 ])
                 
                 await callback.message.edit_text(
-                    f"❌ **Balans yetarli emas!**\n\n"
-                    f"Bu buyurtma uchun **{total_price:,} so'm** kerak.\n"
-                    f"Sizning balansingiz: **{balance['total_balance']:,} so'm**\n"
-                    f"Yetishmayotgan summa: **{total_price - balance['total_balance']:,} so'm**\n\n"
-                    f"💡 **Balansingizni to'ldiring va qaytadan urinib ko'ring!**",
+                    f"❌ Balans yetarli emas!\n\n"
+                    f"Bu buyurtma uchun {total_price:,} so'm kerak.\n"
+                    f"Sizning balansingiz: {balance['total_balance']:,} so'm\n"
+                    f"Yetishmayotgan summa: {total_price - balance['total_balance']:,} so'm\n\n"
+                    f"💡 Balansingizni to'ldiring va qaytadan urinib ko'ring!",
                     reply_markup=balance_keyboard,
-                    parse_mode="Markdown"
                 )
                 return
             
@@ -1031,10 +1020,9 @@ async def start_presentation_generation(callback: types.CallbackQuery, state: FS
             success = await deduct_user_balance(callback.from_user.id, total_price)
             if not success:
                 await callback.message.edit_text(
-                    "❌ **Balansdan mablag' yechishda xatolik!**\n\n"
+                    "❌ Balansdan mablag' yechishda xatolik!\n\n"
                     "Iltimos, qaytadan urinib ko'ring.",
                     reply_markup=get_back_keyboard(),
-                    parse_mode="Markdown"
                 )
                 return
             
@@ -1057,13 +1045,12 @@ async def start_presentation_generation(callback: types.CallbackQuery, state: FS
             ])
             
             await callback.message.edit_text(
-                f"❌ **Balans yetarli emas!**\n\n"
-                f"Bu buyurtma uchun **{total_price:,} so'm** kerak.\n"
-                f"Sizning balansingiz: **{balance['total_balance']:,} so'm**\n"
-                f"Yetishmayotgan summa: **{total_price - balance['total_balance']:,} so'm**\n\n"
-                f"💡 **Balansingizni to'ldiring va qaytadan urinib ko'ring!**",
+                f"❌ Balans yetarli emas!\n\n"
+                f"Bu buyurtma uchun {total_price:,} so'm kerak.\n"
+                f"Sizning balansingiz: {balance['total_balance']:,} so'm\n"
+                f"Yetishmayotgan summa: {total_price - balance['total_balance']:,} so'm\n\n"
+                f"💡 Balansingizni to'ldiring va qaytadan urinib ko'ring!",
                 reply_markup=balance_keyboard,
-                parse_mode="Markdown"
             )
             return
         
@@ -1071,10 +1058,9 @@ async def start_presentation_generation(callback: types.CallbackQuery, state: FS
         success = await deduct_user_balance(callback.from_user.id, total_price)
         if not success:
             await callback.message.edit_text(
-                "❌ **Balansdan mablag' yechishda xatolik!**\n\n"
+                "❌ Balansdan mablag' yechishda xatolik!\n\n"
                 "Iltimos, qaytadan urinib ko'ring.",
                 reply_markup=get_back_keyboard(),
-                parse_mode="Markdown"
             )
             return
         
@@ -1099,12 +1085,11 @@ async def start_presentation_generation(callback: types.CallbackQuery, state: FS
     order_id = await create_order(order_data)
     
     await callback.message.edit_text(
-        "🎉 **Buyurtma tasdiqlandi!**\n\n"
+        "🎉 Buyurtma tasdiqlandi!\n\n"
         "🚀 Taqdimot yaratish jarayoni boshlandi...\n"
         "⏱️ Tahmini vaqt: 2-3 daqiqa\n\n"
         "📱 Tayyor bo'lganda sizga xabar beramiz!",
         reply_markup=get_back_keyboard(),
-        parse_mode="Markdown"
     )
     
     await state.set_state(OnboardingStates.MENU)
@@ -1121,17 +1106,17 @@ async def online_invitation_handler(callback: types.CallbackQuery):
     await callback.answer("📋 Online taklifnoma...")
     
     service_text = (
-        "📋 **Online taklifnoma (QR-kodli):**\n\n"
+        "📋 Online taklifnoma (QR-kodli):\n\n"
         "Professional online taklifnomalar tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• To'ylar uchun taklifnoma\n"
         "• Tug'ilgan kun taklifnomasi\n"
         "• Tadbirlar uchun taklifnoma\n"
         "• Korxona tadbirlari\n"
         "• QR-kod bilan\n\n"
-        "⏱️ **Muddati:** 1-3 kun\n"
-        "💰 **Narx:** Taklifnoma turiga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 1-3 kun\n"
+        "💰 Narx: Taklifnoma turiga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1149,17 +1134,17 @@ async def resume_handler(callback: types.CallbackQuery):
     await callback.answer("📄 Rezyume...")
     
     service_text = (
-        "📄 **Rezyume tayyorlash:**\n\n"
+        "📄 Rezyume tayyorlash:\n\n"
         "Professional va zamonaviy rezyumelar tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• Standart rezyume\n"
         "• Kreativ rezyume\n"
         "• IT mutaxassislar uchun\n"
         "• Marketing uchun\n"
         "• PDF va Word formatlarida\n\n"
-        "⏱️ **Muddati:** 1-2 kun\n"
-        "💰 **Narx:** Rezyume turiga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 1-2 kun\n"
+        "💰 Narx: Rezyume turiga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1177,17 +1162,17 @@ async def youtube_banner_handler(callback: types.CallbackQuery):
     await callback.answer("🎨 YouTube banner...")
     
     service_text = (
-        "🎨 **YouTube kanal uchun banner:**\n\n"
+        "🎨 YouTube kanal uchun banner:\n\n"
         "Professional YouTube kanal bannerlarini tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• Standart YouTube banner\n"
         "• Kreativ dizayn\n"
         "• Kanal mavzusiga mos\n"
         "• Mobil va desktop uchun\n"
         "• PNG va JPG formatlarida\n\n"
-        "⏱️ **Muddati:** 1-2 kun\n"
-        "💰 **Narx:** Dizayn murakkabligiga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 1-2 kun\n"
+        "💰 Narx: Dizayn murakkabligiga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1205,17 +1190,17 @@ async def logo_design_handler(callback: types.CallbackQuery):
     await callback.answer("🎯 Logo dizayn...")
     
     service_text = (
-        "🎯 **Logo tayyorlash:**\n\n"
+        "🎯 Logo tayyorlash:\n\n"
         "Professional va zamonaviy logolarni tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• Korporativ logo\n"
         "• Kichik biznes logo\n"
         "• Start-up logo\n"
         "• Shaxsiy brend logo\n"
         "• Turli formatlarda (PNG, SVG, PDF)\n\n"
-        "⏱️ **Muddati:** 2-5 kun\n"
-        "💰 **Narx:** Logo murakkabligiga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 2-5 kun\n"
+        "💰 Narx: Logo murakkabligiga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1233,7 +1218,7 @@ async def back_to_services(callback: types.CallbackQuery):
     await callback.answer("⬅️ Orqaga...")
     
     services_text = (
-        "🔧 **Boshqa xizmatlar:**\n\n"
+        "🔧 Boshqa xizmatlar:\n\n"
         "Professional dizayn va yozuv xizmatlarini taklif etamiz!\n\n"
         "Quyidagi xizmatlardan birini tanlang:"
     )
@@ -1257,17 +1242,17 @@ async def course_work_handler(callback: types.CallbackQuery):
     await callback.answer("🎓 Kurs ishi...")
     
     work_text = (
-        "🎓 **Kurs ishi tayyorlash:**\n\n"
+        "🎓 Kurs ishi tayyorlash:\n\n"
         "Professional kurs ishlarini tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• Kurs ishi yozish (15-50 sahifa)\n"
         "• Ilmiy tadqiqot ishlari\n"
         "• Texnik kurs ishlari\n"
         "• Iqtisodiy kurs ishlari\n"
         "• Pedagogik kurs ishlari\n\n"
-        "⏱️ **Muddati:** 3-7 kun\n"
-        "💰 **Narx:** Mavzu va sahifalar soniga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 3-7 kun\n"
+        "💰 Narx: Mavzu va sahifalar soniga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1285,17 +1270,17 @@ async def scientific_article_handler(callback: types.CallbackQuery):
     await callback.answer("📄 Ilmiy maqola...")
     
     work_text = (
-        "📄 **Ilmiy maqola tayyorlash:**\n\n"
+        "📄 Ilmiy maqola tayyorlash:\n\n"
         "Ilmiy va akademik maqolalarni tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• Ilmiy maqola yozish\n"
         "• Akademik tadqiqot ishlari\n"
         "• Konferensiya maqolalari\n"
         "• Jurnal uchun maqolalar\n"
         "• Ilmiy tezis yozish\n\n"
-        "⏱️ **Muddati:** 5-10 kun\n"
-        "💰 **Narx:** Mavzu va hajmga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 5-10 kun\n"
+        "💰 Narx: Mavzu va hajmga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1313,17 +1298,17 @@ async def essay_handler(callback: types.CallbackQuery):
     await callback.answer("📚 Referat...")
     
     work_text = (
-        "📚 **Referat tayyorlash:**\n\n"
+        "📚 Referat tayyorlash:\n\n"
         "Har qanday mavzu bo'yicha referatlarni tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• Akademik referatlar\n"
         "• Ilmiy referatlar\n"
         "• Mavzu referatlar\n"
         "• Tadqiqot referatlar\n"
         "• Xulosa referatlar\n\n"
-        "⏱️ **Muddati:** 2-5 kun\n"
-        "💰 **Narx:** Sahifalar soniga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 2-5 kun\n"
+        "💰 Narx: Sahifalar soniga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1341,17 +1326,17 @@ async def independent_work_handler(callback: types.CallbackQuery):
     await callback.answer("📋 Mustaqil ish...")
     
     work_text = (
-        "📋 **Mustaqil ish tayyorlash:**\n\n"
+        "📋 Mustaqil ish tayyorlash:\n\n"
         "Turli yo'nalishlardagi mustaqil ishlarni tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• Akademik mustaqil ishlar\n"
         "• Ilmiy mustaqil ishlar\n"
         "• Amaliy mustaqil ishlar\n"
         "• Tadqiqot mustaqil ishlar\n"
         "• Yaratuvchilik ishlar\n\n"
-        "⏱️ **Muddati:** 3-7 kun\n"
-        "💰 **Narx:** Ish turi va hajmga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 3-7 kun\n"
+        "💰 Narx: Ish turi va hajmga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1369,17 +1354,17 @@ async def report_handler(callback: types.CallbackQuery):
     await callback.answer("📊 Hisobot...")
     
     work_text = (
-        "📊 **Hisobot tayyorlash:**\n\n"
+        "📊 Hisobot tayyorlash:\n\n"
         "Professional hisobotlarni tayyorlab beramiz!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "📋 Xizmatlar:\n"
         "• Tadqiqot hisobotlari\n"
         "• Amaliy hisobotlar\n"
         "• Ish hisobotlari\n"
         "• Statistika hisobotlari\n"
         "• Analiz hisobotlari\n\n"
-        "⏱️ **Muddati:** 2-5 kun\n"
-        "💰 **Narx:** Hisobot turi va hajmga qarab\n\n"
-        "📞 **Buyurtma uchun admin bilan bog'laning:**"
+        "⏱️ Muddati: 2-5 kun\n"
+        "💰 Narx: Hisobot turi va hajmga qarab\n\n"
+        "📞 Buyurtma uchun admin bilan bog'laning:"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1397,7 +1382,7 @@ async def back_to_works(callback: types.CallbackQuery):
     await callback.answer("⬅️ Orqaga...")
     
     works_text = (
-        "📝 **Mustaqil ishlar tayyorlash:**\n\n"
+        "📝 Mustaqil ishlar tayyorlash:\n\n"
         "Professional mustaqil ishlarni tayyorlab beramiz!\n\n"
         "Quyidagi xizmatlardan birini tanlang:"
     )
@@ -1420,17 +1405,17 @@ async def top_up_balance(callback: types.CallbackQuery):
     await callback.answer("💳 Balansni to'ldirish...")
     
     payment_text = (
-        "💳 **Balansni to'ldirish:</b>\n\n"
+        "💳 Balansni to'ldirish:</b>\n\n"
         "Quyidagi usullar orqali balansingizni to'ldirishingiz mumkin:\n\n"
-        "🔹 **Naqt to'lov:**\n"
+        "🔹 Naqt to'lov:\n"
         "• Uzcard: 5614682110523232\n"
         "• Humo: 9860170104108668\n"
         "• VISA: 4023060518185649\n\n"
-        "🔹 **Elektron to'lov:**\n"
+        "🔹 Elektron to'lov:\n"
         "• Payme\n"
         "• Click\n"
         "• Uzcard Mobile\n\n"
-        "💡 **Eslatma:** To'lov amalga oshirgandan so'ng, "
+        "💡 Eslatma: To'lov amalga oshirgandan so'ng, "
         "chek rasmini yuboring va balansingiz 5-10 daqiqada to'ldiriladi."
     )
     
@@ -1448,9 +1433,9 @@ async def send_receipt_menu(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer("📷 Chek yuborish...")
     
     receipt_text = (
-        "📷 **Chek yuborish**\n\n"
+        "📷 Chek yuborish\n\n"
         "To'lov chekini yuboring:\n\n"
-        "📋 **Talablar:**\n"
+        "📋 Talablar:\n"
         "• Rasm aniq va o'qiladigan bo'lishi kerak\n"
         "• To'lov summasi va vaqti ko'rinishi kerak\n"
         "• Chek to'liq ko'rinishi kerak\n\n"
@@ -1485,7 +1470,6 @@ async def process_first_receipt(message: types.Message, state: FSMContext):
     await message.answer(
         "Iltimos, haqiqiy chekni yuboring qaytadan!\n\n"
         "📷 Chekni qayta yuboring:",
-        parse_mode="Markdown"
     )
     await state.set_state(OnboardingStates.RECEIPT_SECOND)
 
@@ -1508,17 +1492,15 @@ async def process_second_receipt(message: types.Message, state: FSMContext):
         media_group = [
             types.InputMediaPhoto(
                 media=first_receipt,
-                caption=f"📷 **To'lov cheklari**\n\n"
+                caption=f"📷 To'lov cheklari\n\n"
                        f"👤 Foydalanuvchi: {message.from_user.full_name}\n"
                        f"🆔 ID: {message.from_user.id}\n"
                        f"📅 Vaqt: {format_time()}\n\n"
-                       f"📷 **Birinchi chek**",
-                parse_mode="Markdown"
+                       f"📷 Birinchi chek",
             ),
             types.InputMediaPhoto(
                 media=second_photo.file_id,
-                caption="📷 **Ikkinchi chek**",
-                parse_mode="Markdown"
+                caption="📷 Ikkinchi chek",
             )
         ]
         
@@ -1530,20 +1512,18 @@ async def process_second_receipt(message: types.Message, state: FSMContext):
         # Qo'shimcha izoh yuborish
         await bot.send_message(
             chat_id=admin_group_id,
-            text=f"📋 **To'lov ma'lumotlari:**\n\n"
-                 f"👤 **Foydalanuvchi:** {message.from_user.full_name}\n"
-                 f"🆔 **ID:** {message.from_user.id}\n"
-                 f"📅 **Vaqt:** {format_time()}\n"
-                 f"📷 **Cheklar:** 2 ta rasm yuborildi\n\n"
-                 f"💡 **Eslatma:** To'lovni tekshirib, balansni to'ldiring",
-            parse_mode="Markdown"
+            text=f"📋 To'lov ma'lumotlari:\n\n"
+                 f"👤 Foydalanuvchi: {message.from_user.full_name}\n"
+                 f"🆔 ID: {message.from_user.id}\n"
+                 f"📅 Vaqt: {format_time()}\n"
+                 f"📷 Cheklar: 2 ta rasm yuborildi\n\n"
+                 f"💡 Eslatma: To'lovni tekshirib, balansni to'ldiring",
         )
         
         # Foydalanuvchiga javob
         await message.answer(
-            "✅ **To'lovingiz tekshirib chiqilmoqda tez orada tasdiqlanadi**",
+            "✅ To'lovingiz tekshirib chiqilmoqda tez orada tasdiqlanadi",
             reply_markup=get_main_keyboard(),
-            parse_mode="Markdown"
         )
         
         # Log qilish
@@ -1555,11 +1535,10 @@ async def process_second_receipt(message: types.Message, state: FSMContext):
         
     except Exception as e:
         await message.answer(
-            f"❌ **Chek yuborishda xatolik!**\n\n"
+            f"❌ Chek yuborishda xatolik!\n\n"
             f"Xatolik: {str(e)}\n\n"
             f"Qaytadan urinib ko'ring yoki @support_admin ga murojaat qiling.",
             reply_markup=get_main_keyboard(),
-            parse_mode="Markdown"
         )
     
     await state.set_state(OnboardingStates.MENU)
@@ -1568,8 +1547,7 @@ async def process_second_receipt(message: types.Message, state: FSMContext):
 async def cancel_receipt_handler(callback: types.CallbackQuery, state: FSMContext):
     """Chek yuborishni bekor qilish"""
     await callback.message.edit_text(
-        "❌ **Chek yuborish bekor qilindi**",
-        parse_mode="Markdown"
+        "❌ Chek yuborish bekor qilindi",
     )
     await state.set_state(OnboardingStates.MENU)
     await callback.answer()
@@ -1592,20 +1570,20 @@ async def get_referral_link(callback: types.CallbackQuery):
     referral_link = f"https://t.me/preuz_bot?start=ref_{callback.from_user.id}"
     
     referral_text = (
-        "👥 **Do'stlarni taklif qilish:**\n\n"
+        "👥 Do'stlarni taklif qilish:\n\n"
         f"Do'stlaringizni taklif qiling va har bir taklif uchun {rewards['referrer_reward']:,} so'm bonus oling!\n\n"
-        f"🔗 **Sizning taklif havolangiz:**\n"
+        f"🔗 Sizning taklif havolangiz:\n"
         f"`{referral_link}`\n\n"
-        f"📊 **Joriy natijalar:**\n"
+        f"📊 Joriy natijalar:\n"
         f"• Umumiy takliflar: {referral_stats['total_referrals']} ta\n"
         f"• Tasdiqlangan: {referral_stats['confirmed_referrals']} ta\n"
         f"• Jami bonus: {referral_stats['total_bonus']:,} so'm\n\n"
-        "📋 **Qanday ishlaydi:**\n"
+        "📋 Qanday ishlaydi:\n"
         "1. Havolani do'stlaringizga yuboring\n"
         "2. Do'stingiz bot orqali ro'yxatdan o'tadi\n"
         f"3. Sizga {rewards['referrer_reward']:,} so'm bonus qo'shiladi\n"
         f"4. Do'stingiz ham {rewards['referred_reward']:,} so'm bonus oladi\n\n"
-        "💡 **Maslahat:** Ko'proq do'st taklif qiling va ko'proq bonus oling!"
+        "💡 Maslahat: Ko'proq do'st taklif qiling va ko'proq bonus oling!"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1630,13 +1608,13 @@ async def show_referral_stats(callback: types.CallbackQuery):
     referral_stats = await get_referral_stats(callback.from_user.id)
     
     stats_text = (
-        "📊 **Referral statistikasi:**\n\n"
-        f"👥 **Umumiy takliflar:** {referral_stats['total_referrals']} ta\n"
-        f"✅ **Tasdiqlangan:** {referral_stats['confirmed_referrals']} ta\n"
-        f"⏳ **Kutilayotgan:** {referral_stats['pending_referrals']} ta\n"
-        f"💰 **Jami bonus:** {referral_stats['total_bonus']:,} so'm\n"
-        f"📅 **Bu oy:** {referral_stats['this_month']} ta taklif\n\n"
-        f"💡 **Maslahat:** Har hafta kamida 3 ta do'st taklif qiling!"
+        "📊 Referral statistikasi:\n\n"
+        f"👥 Umumiy takliflar: {referral_stats['total_referrals']} ta\n"
+        f"✅ Tasdiqlangan: {referral_stats['confirmed_referrals']} ta\n"
+        f"⏳ Kutilayotgan: {referral_stats['pending_referrals']} ta\n"
+        f"💰 Jami bonus: {referral_stats['total_bonus']:,} so'm\n"
+        f"📅 Bu oy: {referral_stats['this_month']} ta taklif\n\n"
+        f"💡 Maslahat: Har hafta kamida 3 ta do'st taklif qiling!"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1649,7 +1627,7 @@ async def show_referral_stats(callback: types.CallbackQuery):
 
 
 @dp.callback_query(F.data == "top_up_balance")
-async def top_up_balance_handler(callback: types.CallbackQuery):
+async def top_up_balance_handler(callback: types.CallbackQuery, state: FSMContext):
     """Balans to'ldirish"""
     await callback.answer("💳 Balans to'ldirish...")
     
@@ -1657,24 +1635,93 @@ async def top_up_balance_handler(callback: types.CallbackQuery):
         return
     
     balance_text = (
-        "💳 **Balans to'ldirish:**\n\n"
-        "💰 **To'lov usullari:**\n"
-        "• Naqd pul (admin orqali)\n"
-        "• Bank orqali o'tkazma\n"
-        "• Karta orqali to'lov\n\n"
-        "📞 **To'lov uchun admin bilan bog'laning:**\n"
-        "• Telegram: @preuzadmin\n"
-        "• Telefon: +998 90 123 45 67\n\n"
-        "💡 **To'lov qilgandan keyin admin sizning balansingizni to'ldiradi!**"
+        "Balansni to'ldirish:\n\n"
+        "Quyidagi usullar orqali balansingizni to'ldirishingiz mumkin:\n\n"
+        "Naqt to'lov:\n"
+        "• Uzcard: 5614682110523232\n"
+        "• Humo: 9860170104108668\n"
+        "• VISA: 4023060518185649\n\n"
+        "Elektron to'lov:\n"
+        "• Payme\n"
+        "• Click\n"
+        "• Uzcard Mobile\n\n"
+        "Eslatma: To'lov amalga oshirgandan so'ng, chek rasmini yuboring va balansingiz 5-10 daqiqada to'ldiriladi."
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👨‍💼 Admin bilan bog'lanish", url="https://t.me/preuzadmin")],
+        [InlineKeyboardButton(text="📷 Chek yuborish", callback_data="send_receipt")],
         [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_balance")]
     ])
     
     if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
-        await callback.message.edit_text(balance_text, reply_markup=keyboard, parse_mode="Markdown")
+        await callback.message.edit_text(balance_text, reply_markup=keyboard)
+
+@dp.callback_query(F.data == "send_receipt")
+async def send_receipt_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Chek yuborish"""
+    await callback.answer("📷 Chek yuborish...")
+    
+    if not callback.from_user:
+        return
+    
+    receipt_text = (
+        "Chek yuborish:\n\n"
+        "Iltimos, faqat skrinshot rasmni yuboring. Boshqasi qabul qilinmaydi.\n\n"
+        "Chek yuborish uchun rasmni yuboring:"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_receipt")]
+    ])
+    
+    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
+        await callback.message.edit_text(receipt_text, reply_markup=keyboard)
+    
+    await state.set_state(OnboardingStates.RECEIPT_FIRST)
+
+@dp.callback_query(F.data == "cancel_receipt")
+async def cancel_receipt_handler(callback: types.CallbackQuery, state: FSMContext):
+    """Chek yuborishni bekor qilish"""
+    await callback.answer("❌ Chek yuborish bekor qilindi!")
+    await state.set_state(OnboardingStates.MENU)
+    
+    # Asosiy menyuga qaytish
+    menu_text = (
+        "Xush kelibsiz!\n\n"
+        "Quyidagi tugmalardan birini tanlang:"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Taqdimot tayyorlash", callback_data="create_presentation")],
+        [InlineKeyboardButton(text="💰 Balansim", callback_data="my_balance")],
+        [InlineKeyboardButton(text="👥 Do'stlarni taklif qilish", callback_data="referral_link")],
+        [InlineKeyboardButton(text="📞 Aloqa", callback_data="contact_us")]
+    ])
+    
+    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
+        await callback.message.edit_text(menu_text, reply_markup=keyboard)
+
+@dp.message(StateFilter(OnboardingStates.RECEIPT_FIRST), F.photo)
+async def process_receipt_photo(message: types.Message, state: FSMContext):
+    """Chek rasmini qabul qilish"""
+    await message.answer(
+        "✅ Chek qabul qilindi!\n\n"
+        "Admin tez orada sizning balansingizni to'ldiradi.\n"
+        "Balans yangilanishi haqida xabar beramiz.",
+        reply_markup=get_main_keyboard()
+    )
+    await state.set_state(OnboardingStates.MENU)
+
+@dp.message(StateFilter(OnboardingStates.RECEIPT_FIRST))
+async def process_receipt_other(message: types.Message, state: FSMContext):
+    """Chek bo'lmagan narsa yuborilganda"""
+    await message.answer(
+        "❌ Iltimos, faqat skrinshot rasmni yuboring!\n\n"
+        "Boshqa narsalar qabul qilinmaydi.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_receipt")]
+        ])
+    )
 
 @dp.callback_query(F.data == "back_to_menu")
 async def back_to_menu_handler(callback: types.CallbackQuery, state: FSMContext):
@@ -1684,14 +1731,14 @@ async def back_to_menu_handler(callback: types.CallbackQuery, state: FSMContext)
     
     # Asosiy menyu matnini yuborish
     menu_text = (
-        "🎉 **Xush kelibsiz!**\n\n"
-        "🤖 **@preuz_bot** - professional taqdimotlar yaratish uchun!\n\n"
-        "📋 **Xizmatlar:**\n"
+        "🎉 Xush kelibsiz!\n\n"
+        "🤖 @preuz_bot - professional taqdimotlar yaratish uchun!\n\n"
+        "📋 Xizmatlar:\n"
         "• 🎯 Taqdimot yaratish\n"
         "• 📊 Hisobot tayyorlash\n"
         "• 💰 Balans boshqarish\n"
         "• 👥 Do'stlarni taklif qilish\n\n"
-        "🚀 **Boshlash uchun tugmalardan birini tanlang!**"
+        "🚀 Boshlash uchun tugmalardan birini tanlang!"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1717,9 +1764,9 @@ async def back_to_balance(callback: types.CallbackQuery):
     referral_stats = await get_referral_stats(callback.from_user.id)
     
     balance_text = (
-        f"💰 **Sizning balansingiz:**\n\n"
-        f"💳 **Umumiy balans:** {balance['total_balance']:,} so'm\n\n"
-        f"📊 **Balans tafsilotlari:**\n"
+        f"💰 Sizning balansingiz:\n\n"
+        f"💳 Umumiy balans: {balance['total_balance']:,} so'm\n\n"
+        f"📊 Balans tafsilotlari:\n"
         f"• Naqt orqali to'langan: {balance['cash_balance']:,} so'm\n"
         f"• {referral_stats['confirmed_referrals']} ta taklif uchun: {balance['referral_balance']:,} so'm"
     )
@@ -1740,15 +1787,15 @@ async def send_receipt(callback: types.CallbackQuery):
     await callback.answer("📸 Chek yuborish...")
     
     receipt_text = (
-        "📸 **Chek yuborish:**\n\n"
+        "📸 Chek yuborish:\n\n"
         "To'lov cheki rasmini yuboring va quyidagi ma'lumotlarni ko'rsating:\n\n"
-        "🔹 **Kerakli ma'lumotlar:**\n"
+        "🔹 Kerakli ma'lumotlar:\n"
         "• To'lov summasi\n"
         "• To'lov sanasi va vaqti\n"
         "• Karta raqami (oxirgi 4 ta raqam)\n\n"
-        "⏱️ **Tekshirish vaqti:** 5-10 daqiqa\n"
-        "✅ **Tasdiqlangandan so'ng:** Balansingiz avtomatik to'ldiriladi\n\n"
-        "💡 **Eslatma:** Faqat aniq va o'qiladigan rasmlarni yuboring."
+        "⏱️ Tekshirish vaqti: 5-10 daqiqa\n"
+        "✅ Tasdiqlangandan so'ng: Balansingiz avtomatik to'ldiriladi\n\n"
+        "💡 Eslatma: Faqat aniq va o'qiladigan rasmlarni yuboring."
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1792,12 +1839,11 @@ async def generate_presentation_task(user_tg_id: int, order_id: int, topic: str,
         await bot.send_document(
             chat_id=user_tg_id,
             document=input_file,
-            caption=f"🎉 **Taqdimot tayyor!**\n\n"
-                   f"📊 **Mavzu:** {topic}\n"
-                   f"📄 **Sahifalar:** {pages}\n"
-                   f"💰 **Tarif:** {TARIFFS[tariff]['name']}\n\n"
+            caption=f"🎉 Taqdimot tayyor!\n\n"
+                   f"📊 Mavzu: {topic}\n"
+                   f"📄 Sahifalar: {pages}\n"
+                   f"💰 Tarif: {TARIFFS[tariff]['name']}\n\n"
                    f"✅ Fayl muvaffaqiyatli yaratildi!",
-            parse_mode="Markdown"
         )
         
         # Admin guruhga taqdimot haqida xabar yuborish
@@ -1827,11 +1873,10 @@ async def generate_presentation_task(user_tg_id: int, order_id: int, topic: str,
         
         await bot.send_message(
             chat_id=user_tg_id,
-            text=f"❌ **Xatolik yuz berdi!**\n\n"
+            text=f"❌ Xatolik yuz berdi!\n\n"
                  f"Taqdimot yaratishda muammo bo'ldi. Iltimos, qaytadan urinib ko'ring.\n\n"
                  f"📞 Agar muammo davom etsa, qo'llab-quvvatlashga murojaat qiling.\n\n"
                  f"🔍 Xatolik tafsiloti: {str(e)[:100]}...",
-            parse_mode="Markdown"
         )
         
         # Xatolikni log qilish
@@ -1859,9 +1904,9 @@ async def broadcast_menu(message: types.Message, state: FSMContext):
     ])
     
     await message.answer(
-        "📢 **Ommaviy xabar yuborish**\n\n"
+        "📢 Ommaviy xabar yuborish\n\n"
         "Yubormoqchi bo'lgan xabaringizni yuboring:",
-        parse_mode="Markdown",
+,
         reply_markup=cancel_keyboard
     )
     await state.set_state(OnboardingStates.BROADCAST_MESSAGE)
@@ -1897,12 +1942,11 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
         
         # Boshlash xabarini yuborish
         progress_msg = await message.answer(
-            f"📢 **Ommaviy xabar yuborilmoqda...**\n\n"
+            f"📢 Ommaviy xabar yuborilmoqda...\n\n"
             f"📊 Jami foydalanuvchilar: {total_users} ta\n"
             f"✅ Yuborildi: 0 ta\n"
             f"❌ Xatolik: 0 ta\n"
             f"⏳ Qoldi: {total_users} ta",
-            parse_mode="Markdown"
         )
         
         # Xabarni yuborish
@@ -1913,7 +1957,7 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
                     await bot.send_message(
                         chat_id=int(user['user_id']),
                         text=message.text,
-                        parse_mode="Markdown" if "**" in message.text else None
+ if "" in message.text else None
                     )
                 # Agar xabar forward qilingan bo'lsa
                 elif message.forward_from or message.forward_from_chat:
@@ -1959,12 +2003,11 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
                     await bot.edit_message_text(
                         chat_id=message.chat.id,
                         message_id=progress_msg.message_id,
-                        text=f"📢 **Ommaviy xabar yuborilmoqda...**\n\n"
+                        text=f"📢 Ommaviy xabar yuborilmoqda...\n\n"
                              f"📊 Jami foydalanuvchilar: {total_users} ta\n"
                              f"✅ Yuborildi: {success_count} ta\n"
                              f"❌ Xatolik: {failed_count} ta\n"
                              f"⏳ Qoldi: {remaining} ta",
-                        parse_mode="Markdown"
                     )
                 
                 await asyncio.sleep(0.1)  # Rate limiting uchun
@@ -1976,11 +2019,10 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
         await bot.edit_message_text(
             chat_id=message.chat.id,
             message_id=progress_msg.message_id,
-            text=f"📢 **Ommaviy xabar yuborildi!**\n\n"
+            text=f"📢 Ommaviy xabar yuborildi!\n\n"
                  f"✅ Muvaffaqiyatli: {success_count} ta\n"
                  f"❌ Bloklaganlar: {failed_count} ta\n"
                  f"📊 Jami: {total_users} ta foydalanuvchi",
-            parse_mode="Markdown"
         )
         
         await message.answer(
@@ -1997,10 +2039,9 @@ async def process_broadcast_message(message: types.Message, state: FSMContext):
         
     except Exception as e:
         await message.answer(
-            f"❌ **Xabar yuborishda xatolik!**\n\n"
+            f"❌ Xabar yuborishda xatolik!\n\n"
             f"Xatolik: {str(e)}",
             reply_markup=get_admin_keyboard(),
-            parse_mode="Markdown"
         )
     
     await state.set_state(OnboardingStates.MENU)
@@ -2013,8 +2054,7 @@ async def cancel_broadcast_handler(callback: types.CallbackQuery, state: FSMCont
         return
     
     await callback.message.edit_text(
-        "❌ **Ommaviy xabar bekor qilindi**",
-        parse_mode="Markdown"
+        "❌ Ommaviy xabar bekor qilindi",
     )
     await state.set_state(OnboardingStates.MENU)
     await callback.answer()
@@ -2027,8 +2067,7 @@ async def cancel_user_message_handler(callback: types.CallbackQuery, state: FSMC
         return
     
     await callback.message.edit_text(
-        "❌ **Bir kishiga xabar bekor qilindi**",
-        parse_mode="Markdown"
+        "❌ Bir kishiga xabar bekor qilindi",
     )
     await state.set_state(OnboardingStates.MENU)
     await callback.answer()
@@ -2046,9 +2085,9 @@ async def send_to_user_menu(message: types.Message, state: FSMContext):
     ])
     
     await message.answer(
-        "💬 **Bir kishiga xabar yuborish**\n\n"
+        "💬 Bir kishiga xabar yuborish\n\n"
         "Foydalanuvchi ID sini kiriting:",
-        parse_mode="Markdown",
+,
         reply_markup=cancel_keyboard
     )
     await state.set_state(OnboardingStates.USER_ID_INPUT)
@@ -2076,18 +2115,18 @@ async def process_user_id(message: types.Message, state: FSMContext):
             created_at = user.get('created_at', 'Noma\'lum')
             
             await message.answer(
-                f"✅ **Foydalanuvchi topildi!**\n\n"
+                f"✅ Foydalanuvchi topildi!\n\n"
                 f"👤 Ism: {full_name}\n"
                 f"📱 Username: @{username}\n"
                 f"📅 Qo'shilgan: {created_at}\n\n"
                 f"Yubormoqchi bo'lgan xabaringizni yuboring:",
-                parse_mode="Markdown",
+,
                 reply_markup=cancel_keyboard
             )
             await state.set_state(OnboardingStates.USER_MESSAGE)
         else:
             await message.answer(
-                "❌ **Foydalanuvchi topilmadi!**\n\n"
+                "❌ Foydalanuvchi topilmadi!\n\n"
                 "To'g'ri ID kiriting yoki qaytadan urinib ko'ring:",
                 reply_markup=get_admin_keyboard()
             )
@@ -2095,7 +2134,7 @@ async def process_user_id(message: types.Message, state: FSMContext):
             
     except ValueError:
         await message.answer(
-            "❌ **Noto'g'ri ID format!**\n\n"
+            "❌ Noto'g'ri ID format!\n\n"
             "Faqat raqam kiriting:",
             reply_markup=get_admin_keyboard()
         )
@@ -2116,7 +2155,7 @@ async def process_user_message(message: types.Message, state: FSMContext):
             await bot.send_message(
                 chat_id=target_user_id,
                 text=message.text,
-                parse_mode="Markdown" if "**" in message.text else None
+ if "" in message.text else None
             )
         # Agar xabar forward qilingan bo'lsa
         elif message.forward_from or message.forward_from_chat:
@@ -2155,10 +2194,9 @@ async def process_user_message(message: types.Message, state: FSMContext):
             )
         
         await message.answer(
-            f"✅ **Xabar muvaffaqiyatli yuborildi!**\n\n"
+            f"✅ Xabar muvaffaqiyatli yuborildi!\n\n"
             f"👤 Foydalanuvchi ID: {target_user_id}",
             reply_markup=get_admin_keyboard(),
-            parse_mode="Markdown"
         )
         
         # Log qilish
@@ -2169,10 +2207,9 @@ async def process_user_message(message: types.Message, state: FSMContext):
         
     except Exception as e:
         await message.answer(
-            f"❌ **Xabar yuborishda xatolik!**\n\n"
+            f"❌ Xabar yuborishda xatolik!\n\n"
             f"Xatolik: {str(e)}",
             reply_markup=get_admin_keyboard(),
-            parse_mode="Markdown"
         )
     
     await state.set_state(OnboardingStates.MENU)
@@ -2204,21 +2241,20 @@ async def admin_statistics(message: types.Message):
         
         current_time = format_time()
         stats_text = (
-            f"📊 **Umumiy statistika**\n\n"
-            f"👥 **Jami foydalanuvchilar:** {total_users:,}\n"
-            f"✅ **Faol foydalanuvchilar:** {active_users:,}\n"
-            f"🚫 **Blok qilinganlar:** {blocked_users:,}\n"
-            f"📈 **Faollik darajasi:** {(active_users/total_users*100):.1f}%\n\n"
-            f"🕐 **Oxirgi yangilanish:** {current_time}"
+            f"📊 Umumiy statistika\n\n"
+            f"👥 Jami foydalanuvchilar: {total_users:,}\n"
+            f"✅ Faol foydalanuvchilar: {active_users:,}\n"
+            f"🚫 Blok qilinganlar: {blocked_users:,}\n"
+            f"📈 Faollik darajasi: {(active_users/total_users*100):.1f}%\n\n"
+            f"🕐 Oxirgi yangilanish: {current_time}"
         )
         
         await message.answer(stats_text, parse_mode="Markdown")
         
     except Exception as e:
         await message.answer(
-            f"❌ **Statistika olishda xatolik!**\n\n"
+            f"❌ Statistika olishda xatolik!\n\n"
             f"Xatolik: {str(e)}",
-            parse_mode="Markdown"
         )
 
 @dp.message(StateFilter(OnboardingStates.MENU), F.text == "💰 Balans boshqarish")
@@ -2233,9 +2269,9 @@ async def balance_management_menu(message: types.Message, state: FSMContext):
     ])
     
     await message.answer(
-        "💰 **Balans boshqarish**\n\n"
+        "💰 Balans boshqarish\n\n"
         "Foydalanuvchi ID sini kiriting:",
-        parse_mode="Markdown",
+,
         reply_markup=cancel_keyboard
     )
     await state.set_state(OnboardingStates.BALANCE_USER_ID)
@@ -2265,17 +2301,17 @@ async def process_balance_user_id(message: types.Message, state: FSMContext):
             username = user.get('username', 'Noma\'lum')
             
             await message.answer(
-                f"👤 **Foydalanuvchi:** {full_name}\n"
-                f"📱 **Username:** @{username}\n"
-                f"💳 **Joriy balans:** {balance['total_balance']:,} so'm\n\n"
+                f"👤 Foydalanuvchi: {full_name}\n"
+                f"📱 Username: @{username}\n"
+                f"💳 Joriy balans: {balance['total_balance']:,} so'm\n\n"
                 f"Balans boshqarish uchun amalni tanlang:",
-                parse_mode="Markdown",
+,
                 reply_markup=balance_keyboard
             )
             await state.set_state(OnboardingStates.BALANCE_ACTION)
         else:
             await message.answer(
-                "❌ **Foydalanuvchi topilmadi!**\n\n"
+                "❌ Foydalanuvchi topilmadi!\n\n"
                 "To'g'ri ID kiriting yoki qaytadan urinib ko'ring:",
                 reply_markup=get_admin_keyboard()
             )
@@ -2283,7 +2319,7 @@ async def process_balance_user_id(message: types.Message, state: FSMContext):
             
     except ValueError:
         await message.answer(
-            "❌ **Noto'g'ri ID format!**\n\n"
+            "❌ Noto'g'ri ID format!\n\n"
             "Faqat raqam kiriting:",
             reply_markup=get_admin_keyboard()
         )
@@ -2299,9 +2335,8 @@ async def balance_action_handler(callback: types.CallbackQuery, state: FSMContex
     emoji = "➕" if callback.data == "add_balance" else "➖"
     
     await callback.message.edit_text(
-        f"{emoji} **Balans {action}**\n\n"
+        f"{emoji} Balans {action}\n\n"
         f"Qancha so'm {action}ni kiriting:",
-        parse_mode="Markdown"
     )
     
     await state.update_data(balance_action=callback.data)
@@ -2343,13 +2378,12 @@ async def process_balance_amount(message: types.Message, state: FSMContext):
         full_name = user.get('full_name', 'Noma\'lum')
         
         await message.answer(
-            f"{emoji} **Balans muvaffaqiyatli {action_text}!**\n\n"
-            f"👤 **Foydalanuvchi:** {full_name}\n"
-            f"💰 **Yangi balans:** {balance['total_balance']:,} so'm\n"
-            f"💳 **Naqt balans:** {balance['cash_balance']:,} so'm\n"
-            f"🎁 **Referral balans:** {balance['referral_balance']:,} so'm",
+            f"{emoji} Balans muvaffaqiyatli {action_text}!\n\n"
+            f"👤 Foydalanuvchi: {full_name}\n"
+            f"💰 Yangi balans: {balance['total_balance']:,} so'm\n"
+            f"💳 Naqt balans: {balance['cash_balance']:,} so'm\n"
+            f"🎁 Referral balans: {balance['referral_balance']:,} so'm",
             reply_markup=get_admin_keyboard(),
-            parse_mode="Markdown"
         )
         
         # Log qilish
@@ -2362,7 +2396,7 @@ async def process_balance_amount(message: types.Message, state: FSMContext):
         
     except ValueError as e:
         await message.answer(
-            f"❌ **Noto'g'ri miqdor!**\n\n"
+            f"❌ Noto'g'ri miqdor!\n\n"
             f"Xatolik: {str(e)}\n"
             f"Faqat musbat raqam kiriting:",
             reply_markup=get_admin_keyboard()
@@ -2378,8 +2412,7 @@ async def cancel_balance_handler(callback: types.CallbackQuery, state: FSMContex
         return
     
     await callback.message.edit_text(
-        "❌ **Balans boshqarish bekor qilindi**",
-        parse_mode="Markdown"
+        "❌ Balans boshqarish bekor qilindi",
     )
     await state.set_state(OnboardingStates.MENU)
     await callback.answer()
@@ -2394,18 +2427,17 @@ async def referral_settings_menu(message: types.Message):
     rewards = await get_referral_rewards()
     
     current_settings = (
-        "⚙️ **Referral sozlamalari**\n\n"
-        "💰 **Hozirgi bonuslar:**\n"
+        "⚙️ Referral sozlamalari\n\n"
+        "💰 Hozirgi bonuslar:\n"
         f"• Taklif qilgan: {rewards['referrer_reward']:,} so'm\n"
         f"• Taklif qilingan: {rewards['referred_reward']:,} so'm\n\n"
-        "📝 **Sozlash uchun:**\n"
+        "📝 Sozlash uchun:\n"
         "Quyidagi formatda yuboring:\n"
         "`referral: taklif_qilgan: 1500, taklif_qilingan: 700`"
     )
     
     await message.answer(
         current_settings,
-        parse_mode="Markdown"
     )
 
 
@@ -2414,10 +2446,9 @@ async def referral_settings_menu(message: types.Message):
 async def back_to_main_menu(message: types.Message):
     """Asosiy menyuga qaytish"""
     await message.answer(
-        "🏠 **Asosiy menyu**\n\n"
+        "🏠 Asosiy menyu\n\n"
         "Quyidagi tugmalardan birini tanlang:",
         reply_markup=get_main_keyboard(),
-        parse_mode="Markdown"
     )
 
 # Referral sozlamalarini qabul qilish
@@ -2440,12 +2471,11 @@ async def process_referral_settings(message: types.Message):
         
         if success:
             await message.answer(
-                f"✅ **Referral sozlamalari yangilandi!**\n\n"
-                f"💰 **Yangi bonuslar:**\n"
+                f"✅ Referral sozlamalari yangilandi!\n\n"
+                f"💰 Yangi bonuslar:\n"
                 f"• Taklif qilgan: {referrer_amount:,} so'm\n"
                 f"• Taklif qilingan: {referred_amount:,} so'm\n\n"
                 f"🔄 Endi yangi referrallar uchun bu bonuslar ishlatiladi.",
-                parse_mode="Markdown"
             )
             
             # Log qilish
@@ -2455,23 +2485,21 @@ async def process_referral_settings(message: types.Message):
             })
         else:
             await message.answer(
-                "❌ **Sozlamalarni yangilashda xatolik!**\n\n"
+                "❌ Sozlamalarni yangilashda xatolik!\n\n"
                 "Iltimos, qaytadan urinib ko'ring.",
-                parse_mode="Markdown"
             )
             
     except Exception as e:
         await message.answer(
-            f"❌ **Noto'g'ri format!**\n\n"
+            f"❌ Noto'g'ri format!\n\n"
             f"To'g'ri format: `referral: taklif_qilgan: 1500, taklif_qilingan: 700`\n\n"
             f"Xatolik: {str(e)}",
-            parse_mode="Markdown"
         )
 
 
 # Error handler
 @dp.error()
-async def error_handler(event, **kwargs):
+async def error_handler(event, kwargs):
     """Xatoliklar bilan ishlash"""
     import logging
     logging.error(f"Bot xatoligi: {event}")
@@ -2495,9 +2523,8 @@ async def error_handler(event, **kwargs):
     if hasattr(event, 'message') and event.message:
         try:
             await event.message.answer(
-                "❌ **Xatolik yuz berdi!**\n\n"
+                "❌ Xatolik yuz berdi!\n\n"
                 "Iltimos, qaytadan urinib ko'ring yoki /start buyrug'ini yuboring.",
-                parse_mode="Markdown"
             )
         except:
             pass
