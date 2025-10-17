@@ -130,16 +130,15 @@ async def get_user_balance(user_tg_id: int) -> Dict[str, Any]:
     try:
         async with aiosqlite.connect(DATABASE_PATH) as db:
             cursor = await db.execute(
-                "SELECT balance FROM users WHERE user_id = ?", (str(user_tg_id),)
+                "SELECT cash_balance, referral_balance, total_balance FROM user_balances WHERE user_id = ?", (str(user_tg_id),)
             )
             row = await cursor.fetchone()
             
             if row:
-                balance = row[0] or 0
                 return {
-                    "total_balance": balance,
-                    "cash_balance": balance,
-                    "referral_balance": 0
+                    "total_balance": row[2] or 0,
+                    "cash_balance": row[0] or 0,
+                    "referral_balance": row[1] or 0
                 }
             else:
                 return {"total_balance": 0, "cash_balance": 0, "referral_balance": 0}
@@ -161,11 +160,18 @@ async def update_user_balance(user_tg_id: int, amount: int, balance_type: str = 
             if not user:
                 return False
             
-            # Balansni yangilash (oddiy qo'shish)
-            await db.execute(
-                "UPDATE users SET balance = balance + ? WHERE user_id = ?", 
-                (amount, str(user_tg_id))
-            )
+            # Balansni yangilash
+            if balance_type == 'cash':
+                await db.execute(
+                    "UPDATE user_balances SET cash_balance = cash_balance + ?, total_balance = total_balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?", 
+                    (amount, amount, str(user_tg_id))
+                )
+            elif balance_type == 'referral':
+                await db.execute(
+                    "UPDATE user_balances SET referral_balance = referral_balance + ?, total_balance = total_balance + ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?", 
+                    (amount, amount, str(user_tg_id))
+                )
+            
             await db.commit()
             return True
             
@@ -179,7 +185,7 @@ async def deduct_user_balance(user_tg_id: int, amount: int) -> bool:
         async with aiosqlite.connect(DATABASE_PATH) as db:
             # Foydalanuvchini topish
             cursor = await db.execute(
-                "SELECT balance FROM users WHERE user_id = ?", (str(user_tg_id),)
+                "SELECT total_balance FROM user_balances WHERE user_id = ?", (str(user_tg_id),)
             )
             row = await cursor.fetchone()
             
@@ -192,10 +198,10 @@ async def deduct_user_balance(user_tg_id: int, amount: int) -> bool:
             if current_balance < amount:
                 return False
             
-            # Balansdan ayirish
+            # Balansdan ayirish (naqt balansdan)
             await db.execute(
-                "UPDATE users SET balance = balance - ? WHERE user_id = ?", 
-                (amount, str(user_tg_id))
+                "UPDATE user_balances SET cash_balance = cash_balance - ?, total_balance = total_balance - ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?", 
+                (amount, amount, str(user_tg_id))
             )
             await db.commit()
             return True
@@ -228,8 +234,19 @@ async def get_user_free_orders_count(user_tg_id: int) -> int:
         row = await cursor.fetchone()
         return row['count'] if row else 0
 
-async def add_transaction(transaction_data: Dict[str, Any]) -> int:
-    return 0
+async def add_transaction(user_tg_id: int, amount: int, transaction_type: str, description: str, order_id: int = None) -> int:
+    """Tranzaksiya qo'shish"""
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            cursor = await db.execute(
+                "INSERT INTO transactions (user_id, amount, transaction_type, description) VALUES (?, ?, ?, ?)",
+                (str(user_tg_id), amount, transaction_type, description)
+            )
+            await db.commit()
+            return cursor.lastrowid
+    except Exception as e:
+        print(f"Tranzaksiya qo'shishda xatolik: {e}")
+        return 0
 
 async def get_referral_rewards(user_tg_id: int) -> List[Dict[str, Any]]:
     return []
