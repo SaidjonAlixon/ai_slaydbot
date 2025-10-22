@@ -1631,7 +1631,7 @@ async def process_click_amount_input(message: types.Message, state: FSMContext):
             
             text = (
                 f"💳 **CLICK to'lov - {amount:,} so'm**\n\n"
-                f"👤 **Foydalanuvchi:** @{message.from_user.username or 'Noma\'lum'}\n"
+                f"👤 **Foydalanuvchi:** @{message.from_user.username or 'Nomalum'}\n"
                 f"💰 **Miqdor:** {amount:,} so'm\n"
                 f"🆔 **To'lov ID:** {payment_id}\n\n"
                 f"🔗 **To'lov havolasi:**\n"
