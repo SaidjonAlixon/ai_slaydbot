@@ -41,19 +41,7 @@ async def startup_event():
 @app.get("/health")
 async def health_check():
     """Healthcheck endpoint Railway uchun"""
-    try:
-        # Simple health check - just return status without database dependency
-        print("Health check requested")
-        return {
-            "status": "healthy", 
-            "service": "telegram-bot", 
-            "timestamp": datetime.now().isoformat(),
-            "uptime": "running",
-            "port": os.getenv("PORT", 8000)
-        }
-    except Exception as e:
-        print(f"Health check error: {e}")
-        return {"status": "unhealthy", "error": str(e)}
+    return {"status": "healthy", "service": "telegram-bot"}
 
 @app.get("/")
 async def root():
@@ -123,8 +111,14 @@ async def main():
                 print("Waiting for FastAPI server to start...")
                 await asyncio.sleep(2)  # Railway uchun kamroq vaqt
                 print("Bot polling boshlanmoqda...")
-                # Admin panel dispatcher'ini asosiy dispatcher'ga qo'shish
-                dp.include_router(admin_dp)
+                
+                # Webhook'ni to'liq o'chirish
+                try:
+                    await bot.delete_webhook(drop_pending_updates=True)
+                    print("Webhook to'liq o'chirildi")
+                except Exception as e:
+                    print(f"Webhook o'chirishda xatolik: {e}")
+                
                 await dp.start_polling(bot)
             except Exception as e:
                 print(f"Bot polling xatoligi: {e}")
@@ -135,7 +129,7 @@ async def main():
         
         # FastAPI server ishga tushish uchun kutish
         print("Waiting for FastAPI server to initialize...")
-        await asyncio.sleep(2)  # Railway uchun kamroq vaqt
+        await asyncio.sleep(3)  # Railway uchun biroz ko'proq vaqt
         print("FastAPI server should be ready, starting bot polling...")
         
         # Bot polling'ni ishga tushirish
@@ -144,14 +138,8 @@ async def main():
         print("All services started successfully")
         print("Bot va FastAPI server ishga tushdi!")
         
-        # Railway uchun - avval FastAPI'ni kutish, keyin bot polling
-        try:
-            await asyncio.wait_for(fastapi_task, timeout=30)
-        except asyncio.TimeoutError:
-            print("FastAPI server timeout, but continuing with bot...")
-        
-        # Bot polling'ni kutish
-        await bot_task
+        # Railway uchun - ikkala task'ni parallel ishga tushirish
+        await asyncio.gather(fastapi_task, bot_task, return_exceptions=True)
         
     except Exception as e:
         print(f"Bot ishga tushishda xatolik: {e}")
