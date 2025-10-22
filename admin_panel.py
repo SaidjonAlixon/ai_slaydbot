@@ -441,9 +441,9 @@ async def process_user_id(message: types.Message, state: FSMContext):
             await state.update_data(target_user_id=user_id)
             await message.answer(
                 f"✅ **Foydalanuvchi topildi!**\n\n"
-                f"👤 Ism: {user.get('full_name', 'Noma\'lum')}\n"
-                f"📱 Username: @{user.get('username', 'Noma\'lum')}\n"
-                f"📅 Qo'shilgan: {user.get('created_at', 'Noma\'lum')}\n\n"
+                f"👤 Ism: {user.get('full_name', 'Nomalum')}\n"
+                f"📱 Username: @{user.get('username', 'Nomalum')}\n"
+                f"📅 Qo'shilgan: {user.get('created_at', 'Nomalum')}\n\n"
                 f"Yubormoqchi bo'lgan xabaringizni yuboring:",
                 parse_mode="Markdown"
             )
