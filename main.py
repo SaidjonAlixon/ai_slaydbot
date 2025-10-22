@@ -37,16 +37,14 @@ app = FastAPI(title="Telegram Bot API", version="1.0.0")
 async def startup_event():
     """FastAPI startup event"""
     print("FastAPI application started")
-    # Bot'ni background'da ishga tushirish
+    # Bot'ni background'da ishga tushirish (non-blocking)
     asyncio.create_task(start_bot())
+    print("Bot startup task created")
 
 @app.get("/health")
 async def health_check():
     """Healthcheck endpoint Railway uchun"""
-    return JSONResponse(
-        status_code=200,
-        content={"status": "healthy", "timestamp": datetime.now().isoformat()}
-    )
+    return {"status": "healthy"}
 
 @app.get("/")
 async def root():
@@ -55,17 +53,15 @@ async def root():
 
 async def start_bot():
     """Bot'ni ishga tushirish funksiyasi"""
-    if not BOT_TOKEN:
-        logger.error("BOT_TOKEN topilmadi!")
-        print("BOT_TOKEN environment variable kerak!")
-        return
-    
-    if not os.getenv("OPENAI_API_KEY"):
-        logger.error("OPENAI_API_KEY topilmadi!")
-        print("OPENAI_API_KEY environment variable kerak!")
-        return
-    
     try:
+        if not BOT_TOKEN:
+            print("BOT_TOKEN topilmadi - bot ishlamaydi")
+            return
+        
+        if not os.getenv("OPENAI_API_KEY"):
+            print("OPENAI_API_KEY topilmadi - bot ishlamaydi")
+            return
+        
         # Ma'lumotlar bazasini ishga tushirish
         await init_db()
         print("Database initialized successfully")
