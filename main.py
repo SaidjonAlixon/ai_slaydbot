@@ -109,7 +109,7 @@ async def main():
             try:
                 # FastAPI server ishga tushish uchun kutish
                 print("Waiting for FastAPI server to start...")
-                await asyncio.sleep(3)  # Railway uchun biroz ko'proq vaqt
+                await asyncio.sleep(5)  # Railway uchun ko'proq vaqt
                 print("Bot polling boshlanmoqda...")
                 
                 # Webhook'ni to'liq o'chirish
@@ -130,7 +130,7 @@ async def main():
         
         # FastAPI server ishga tushish uchun kutish
         print("Waiting for FastAPI server to initialize...")
-        await asyncio.sleep(5)  # Railway uchun ko'proq vaqt kutish
+        await asyncio.sleep(8)  # Railway uchun ko'proq vaqt kutish
         print("FastAPI server should be ready, starting bot polling...")
         
         # Bot polling'ni ishga tushirish
@@ -139,20 +139,8 @@ async def main():
         print("All services started successfully")
         print("Bot va FastAPI server ishga tushdi!")
         
-        # Railway uchun - avval FastAPI'ni kutish, keyin bot polling
-        try:
-            # FastAPI server'ni 30 soniya kutish
-            await asyncio.wait_for(fastapi_task, timeout=30)
-        except asyncio.TimeoutError:
-            print("FastAPI server timeout, but continuing with bot...")
-        except Exception as e:
-            print(f"FastAPI server xatoligi: {e}")
-        
-        # Bot polling'ni kutish
-        try:
-            await bot_task
-        except Exception as e:
-            print(f"Bot polling xatoligi: {e}")
+        # Railway uchun - ikkala task'ni parallel ishga tushirish
+        await asyncio.gather(fastapi_task, bot_task, return_exceptions=True)
         
     except Exception as e:
         print(f"Bot ishga tushishda xatolik: {e}")
