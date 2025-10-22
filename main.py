@@ -7,9 +7,19 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
-from bot import dp, bot
-from admin_panel import dp as admin_dp
-from database_adapter import init_db
+# Bot import'larni try-catch bilan o'rab olamiz
+try:
+    from bot import dp, bot
+    from admin_panel import dp as admin_dp
+    from database_adapter import init_db
+    BOT_AVAILABLE = True
+except Exception as e:
+    print(f"Bot import xatoligi: {e}")
+    BOT_AVAILABLE = False
+    dp = None
+    bot = None
+    admin_dp = None
+    init_db = None
 
 # Windows'da Unicode belgilar uchun encoding sozlash
 if sys.platform == "win32":
@@ -38,8 +48,11 @@ async def startup_event():
     """FastAPI startup event"""
     print("FastAPI application started")
     # Bot'ni background'da ishga tushirish (non-blocking)
-    asyncio.create_task(start_bot())
-    print("Bot startup task created")
+    if BOT_AVAILABLE:
+        asyncio.create_task(start_bot())
+        print("Bot startup task created")
+    else:
+        print("Bot not available - running in API-only mode")
 
 @app.get("/health")
 async def health_check():
@@ -53,6 +66,10 @@ async def root():
 
 async def start_bot():
     """Bot'ni ishga tushirish funksiyasi"""
+    if not BOT_AVAILABLE:
+        print("Bot not available - skipping bot startup")
+        return
+        
     try:
         if not BOT_TOKEN:
             print("BOT_TOKEN topilmadi - bot ishlamaydi")
@@ -63,19 +80,22 @@ async def start_bot():
             return
         
         # Ma'lumotlar bazasini ishga tushirish
-        await init_db()
-        print("Database initialized successfully")
+        if init_db:
+            await init_db()
+            print("Database initialized successfully")
         
         # Webhookni to'liq o'chirish
-        try:
-            await bot.delete_webhook(drop_pending_updates=True)
-            print("Webhook deleted successfully")
-        except Exception as e:
-            print(f"Webhook o'chirishda xatolik: {e}")
+        if bot:
+            try:
+                await bot.delete_webhook(drop_pending_updates=True)
+                print("Webhook deleted successfully")
+            except Exception as e:
+                print(f"Webhook o'chirishda xatolik: {e}")
         
         print("Starting bot polling...")
         # Bot polling'ni ishga tushirish
-        await dp.start_polling(bot)
+        if dp and bot:
+            await dp.start_polling(bot)
         
     except Exception as e:
         print(f"Bot ishga tushishda xatolik: {e}")
