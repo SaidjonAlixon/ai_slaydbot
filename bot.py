@@ -1428,12 +1428,121 @@ async def top_up_balance(callback: types.CallbackQuery):
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💳 CLICK orqali to'lov", callback_data="click_payment")],
         [InlineKeyboardButton(text="📷 Chek yuborish", callback_data="send_receipt")],
         [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_balance")]
     ])
     
     if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
         await callback.message.edit_text(payment_text, reply_markup=keyboard, parse_mode="Markdown")
+
+@dp.callback_query(F.data == "click_payment")
+async def click_payment_menu(callback: types.CallbackQuery):
+    """CLICK orqali to'lov menyusi"""
+    await callback.answer("💳 CLICK to'lov...")
+    
+    text = (
+        "💳 **CLICK orqali to'lov**\n\n"
+        "Balansingizni to'ldirish uchun miqdorni tanlang:\n\n"
+        "💰 **Mavjud to'lov miqdorlari:**"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="5,000 so'm", callback_data="click_amount_5000")],
+        [InlineKeyboardButton(text="10,000 so'm", callback_data="click_amount_10000")],
+        [InlineKeyboardButton(text="20,000 so'm", callback_data="click_amount_20000")],
+        [InlineKeyboardButton(text="50,000 so'm", callback_data="click_amount_50000")],
+        [InlineKeyboardButton(text="100,000 so'm", callback_data="click_amount_100000")],
+        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="top_up_balance")]
+    ])
+    
+    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+
+@dp.callback_query(F.data.startswith("click_amount_"))
+async def process_click_payment(callback: types.CallbackQuery):
+    """CLICK to'lovni qayta ishlash"""
+    amount_str = callback.data.replace("click_amount_", "")
+    amount = int(amount_str)
+    
+    await callback.answer(f"💳 {amount:,} so'm to'lov...")
+    
+    # Click to'lov uchun ma'lumotlar
+    user_id = callback.from_user.id
+    username = callback.from_user.username or "Noma'lum"
+    
+    # Click to'lov havolasini yaratish (bu yerda real Click API ishlatiladi)
+    click_payment_url = f"https://my.click.uz/pay/{user_id}_{amount}_{int(datetime.now().timestamp())}"
+    
+    text = (
+        f"💳 **CLICK to'lov - {amount:,} so'm**\n\n"
+        f"👤 **Foydalanuvchi:** @{username}\n"
+        f"💰 **Miqdor:** {amount:,} so'm\n"
+        f"🆔 **ID:** {user_id}\n\n"
+        f"🔗 **To'lov havolasi:**\n"
+        f"`{click_payment_url}`\n\n"
+        f"📱 **To'lov qilish uchun:**\n"
+        f"1. Havolani bosib o'ting\n"
+        f"2. Click ilovasida to'lov qiling\n"
+        f"3. To'lov muvaffaqiyatli bo'lgandan so'ng, bot avtomatik ravishda balansingizni to'ldiradi\n\n"
+        f"⏰ **Eslatma:** To'lov 5-10 daqiqada qayta ishlanadi"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔗 To'lov qilish", url=click_payment_url)],
+        [InlineKeyboardButton(text="🔄 To'lov holatini tekshirish", callback_data=f"check_payment_{user_id}_{amount}")],
+        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="click_payment")]
+    ])
+    
+    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+
+@dp.callback_query(F.data.startswith("check_payment_"))
+async def check_click_payment_status(callback: types.CallbackQuery):
+    """CLICK to'lov holatini tekshirish"""
+    parts = callback.data.split("_")
+    user_id = parts[2]
+    amount = int(parts[3])
+    
+    await callback.answer("🔄 To'lov holatini tekshirish...")
+    
+    # Bu yerda real Click API orqali to'lov holatini tekshirish kerak
+    # Hozircha demo uchun random natija qaytaramiz
+    import random
+    is_paid = random.choice([True, False])
+    
+    if is_paid:
+        # To'lov muvaffaqiyatli bo'lsa, balansni to'ldirish
+        current_balance = await get_user_balance(user_id)
+        new_balance = current_balance + amount
+        await update_user_balance(user_id, new_balance)
+        
+        text = (
+            f"✅ **To'lov muvaffaqiyatli!**\n\n"
+            f"💰 **To'ldirilgan miqdor:** {amount:,} so'm\n"
+            f"💳 **Joriy balans:** {new_balance:,} so'm\n\n"
+            f"🎉 Balansingiz muvaffaqiyatli to'ldirildi!"
+        )
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💰 Balansim", callback_data="my_balance")],
+            [InlineKeyboardButton(text="🏠 Bosh menyu", callback_data="main_menu")]
+        ])
+    else:
+        text = (
+            f"⏳ **To'lov hali qayta ishlanmagan**\n\n"
+            f"💰 **Miqdor:** {amount:,} so'm\n\n"
+            f"📱 Iltimos, to'lovni tugatgandan so'ng yana urinib ko'ring.\n"
+            f"⏰ To'lov 5-10 daqiqada qayta ishlanadi."
+        )
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Qayta tekshirish", callback_data=f"check_payment_{user_id}_{amount}")],
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="click_payment")]
+        ])
+    
+    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
 
 @dp.callback_query(F.data == "send_receipt")
 async def send_receipt_menu(callback: types.CallbackQuery, state: FSMContext):
