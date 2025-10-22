@@ -292,8 +292,8 @@ async def send_presentation_to_admin_group(user_tg_id: int, topic: str, pages: i
         input_file = FSInputFile(file_path, filename=filename)
         
         # Xavfsiz matn tayyorlash
-        safe_full_name = str(user.get('full_name', 'Noma\'lum'))
-        safe_username = str(user.get('username', 'Noma\'lum'))
+        safe_full_name = str(user.get('full_name', 'Nomalum'))
+        safe_username = str(user.get('username', 'Nomalum'))
         safe_topic = str(topic)
         safe_tariff_name = str(tariff_info['name'])
         safe_filename = str(filename)
@@ -2477,9 +2477,9 @@ async def process_user_id(message: types.Message, state: FSMContext):
                 [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_user_message")]
             ])
             
-            full_name = user.get('name', 'Noma\'lum')
-            username = user.get('username', 'Noma\'lum')
-            created_at = user.get('created_at', 'Noma\'lum')
+            full_name = user.get('name', 'Nomalum')
+            username = user.get('username', 'Nomalum')
+            created_at = user.get('created_at', 'Nomalum')
             
             await message.answer(
                 f"✅ Foydalanuvchi topildi!\n\n"
@@ -2661,8 +2661,8 @@ async def process_balance_user_id(message: types.Message, state: FSMContext):
                 [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_balance")]
             ])
             
-            full_name = user.get('name', 'Noma\'lum')
-            username = user.get('username', 'Noma\'lum')
+            full_name = user.get('name', 'Nomalum')
+            username = user.get('username', 'Nomalum')
             
             await message.answer(
                 f"👤 Foydalanuvchi: {full_name}\n"
@@ -2742,7 +2742,7 @@ async def process_balance_amount(message: types.Message, state: FSMContext):
         balance = await get_user_balance(user_id)
         user = await get_user_by_tg_id(user_id)
         
-        full_name = user.get('full_name', 'Noma\'lum')
+        full_name = user.get('full_name', 'Nomalum')
         
         await message.answer(
             f"{emoji} Balans muvaffaqiyatli {action_text}!\n\n"

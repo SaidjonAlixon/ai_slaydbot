@@ -616,7 +616,7 @@ async def process_balance_user_id(message: types.Message, state: FSMContext):
             await state.update_data(target_user_id=user_id)
             await message.answer(
                 f"✅ **Foydalanuvchi topildi!**\n\n"
-                f"👤 Ism: {user.get('full_name', 'Noma\'lum')}\n"
+                f"👤 Ism: {user.get('full_name', 'Nomalum')}\n"
                 f"💰 Joriy balans: {balance['total_balance']:,} so'm\n\n"
                 f"{action_text.title()} uchun summani kiriting:",
                 parse_mode="Markdown"
