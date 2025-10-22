@@ -2,6 +2,10 @@ import asyncio
 import logging
 import os
 import json
+import hashlib
+import hmac
+import base64
+import requests
 from typing import Optional
 from dotenv import load_dotenv
 import pytz
@@ -31,6 +35,12 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variablesi topilmadi!")
 
+# Click API konfiguratsiyasi
+CLICK_MERCHANT_ID = os.getenv("CLICK_MERCHANT_ID", "your_merchant_id")
+CLICK_SERVICE_ID = os.getenv("CLICK_SERVICE_ID", "your_service_id")
+CLICK_SECRET_KEY = os.getenv("CLICK_SECRET_KEY", "your_secret_key")
+CLICK_API_URL = "https://api.click.uz/v2/merchant"
+
 # OpenAI API key
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "test_key")
 if OPENAI_API_KEY == "test_key":
@@ -40,6 +50,118 @@ if OPENAI_API_KEY == "test_key":
 else:
     # OpenAI client sozlash (yangi format)
     openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+# Click API helper funksiyalari
+def generate_click_signature(data: str) -> str:
+    """Click API uchun imzo yaratish"""
+    return hmac.new(
+        CLICK_SECRET_KEY.encode('utf-8'),
+        data.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+async def create_click_payment(amount: int, user_id: int, order_id: str) -> dict:
+    """Click orqali to'lov yaratish"""
+    try:
+        # To'lov ma'lumotlari
+        payment_data = {
+            "merchant_id": CLICK_MERCHANT_ID,
+            "service_id": CLICK_SERVICE_ID,
+            "amount": amount,
+            "transaction_param": f"user_{user_id}_{order_id}",
+            "return_url": "https://t.me/preuz_bot",
+            "card_type": "UZCARD"
+        }
+        
+        # Imzo yaratish
+        data_string = f"{payment_data['merchant_id']}{payment_data['service_id']}{payment_data['amount']}{payment_data['transaction_param']}"
+        signature = generate_click_signature(data_string)
+        payment_data["sign_time"] = int(datetime.now().timestamp())
+        payment_data["sign_string"] = signature
+        
+        # Click API'ga so'rov yuborish
+        response = requests.post(
+            f"{CLICK_API_URL}/card/create",
+            json=payment_data,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("error_code") == 0:
+                return {
+                    "success": True,
+                    "payment_url": result.get("click_url"),
+                    "payment_id": result.get("payment_id"),
+                    "data": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("error_note", "Noma'lum xatolik")
+                }
+        else:
+            return {
+                "success": False,
+                "error": f"API xatoligi: {response.status_code}"
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"To'lov yaratishda xatolik: {str(e)}"
+        }
+
+async def check_click_payment_status(payment_id: str) -> dict:
+    """Click to'lov holatini tekshirish"""
+    try:
+        # To'lov holatini tekshirish uchun ma'lumotlar
+        check_data = {
+            "merchant_id": CLICK_MERCHANT_ID,
+            "service_id": CLICK_SERVICE_ID,
+            "payment_id": payment_id
+        }
+        
+        # Imzo yaratish
+        data_string = f"{check_data['merchant_id']}{check_data['service_id']}{check_data['payment_id']}"
+        signature = generate_click_signature(data_string)
+        check_data["sign_time"] = int(datetime.now().timestamp())
+        check_data["sign_string"] = signature
+        
+        # Click API'ga so'rov yuborish
+        response = requests.post(
+            f"{CLICK_API_URL}/card/status",
+            json=check_data,
+            headers={"Content-Type": "application/json"},
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get("error_code") == 0:
+                return {
+                    "success": True,
+                    "status": result.get("status"),
+                    "amount": result.get("amount"),
+                    "data": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("error_note", "Noma'lum xatolik")
+                }
+        else:
+            return {
+                "success": False,
+                "error": f"API xatoligi: {response.status_code}"
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"To'lov holatini tekshirishda xatolik: {str(e)}"
+        }
 
 # Admin ID larini environment variabledan olish
 ADMIN_IDS = os.getenv("ADMIN_IDS", "").split(",")
@@ -1437,107 +1559,202 @@ async def top_up_balance(callback: types.CallbackQuery):
         await callback.message.edit_text(payment_text, reply_markup=keyboard, parse_mode="Markdown")
 
 @dp.callback_query(F.data == "click_payment")
-async def click_payment_menu(callback: types.CallbackQuery):
+async def click_payment_menu(callback: types.CallbackQuery, state: FSMContext):
     """CLICK orqali to'lov menyusi"""
     await callback.answer("💳 CLICK to'lov...")
     
     text = (
         "💳 **CLICK orqali to'lov**\n\n"
-        "Balansingizni to'ldirish uchun miqdorni tanlang:\n\n"
-        "💰 **Mavjud to'lov miqdorlari:**"
+        "Balansingizni to'ldirish uchun miqdorni kiriting:\n\n"
+        "💰 **Minimal miqdor:** 1,000 so'm\n"
+        "💰 **Maksimal miqdor:** 1,000,000 so'm\n\n"
+        "📝 **Miqdorni yuboring:**"
     )
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="5,000 so'm", callback_data="click_amount_5000")],
-        [InlineKeyboardButton(text="10,000 so'm", callback_data="click_amount_10000")],
-        [InlineKeyboardButton(text="20,000 so'm", callback_data="click_amount_20000")],
-        [InlineKeyboardButton(text="50,000 so'm", callback_data="click_amount_50000")],
-        [InlineKeyboardButton(text="100,000 so'm", callback_data="click_amount_100000")],
         [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="top_up_balance")]
     ])
     
     if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
         await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+    
+    # FSM state'ni o'rnatish
+    await state.set_state(OnboardingStates.waiting_click_amount)
 
-@dp.callback_query(F.data.startswith("click_amount_"))
-async def process_click_payment(callback: types.CallbackQuery):
-    """CLICK to'lovni qayta ishlash"""
-    amount_str = callback.data.replace("click_amount_", "")
-    amount = int(amount_str)
-    
-    await callback.answer(f"💳 {amount:,} so'm to'lov...")
-    
-    # Click to'lov uchun ma'lumotlar
-    user_id = callback.from_user.id
-    username = callback.from_user.username or "Noma'lum"
-    
-    # Click to'lov havolasini yaratish (bu yerda real Click API ishlatiladi)
-    click_payment_url = f"https://my.click.uz/pay/{user_id}_{amount}_{int(datetime.now().timestamp())}"
-    
-    text = (
-        f"💳 **CLICK to'lov - {amount:,} so'm**\n\n"
-        f"👤 **Foydalanuvchi:** @{username}\n"
-        f"💰 **Miqdor:** {amount:,} so'm\n"
-        f"🆔 **ID:** {user_id}\n\n"
-        f"🔗 **To'lov havolasi:**\n"
-        f"`{click_payment_url}`\n\n"
-        f"📱 **To'lov qilish uchun:**\n"
-        f"1. Havolani bosib o'ting\n"
-        f"2. Click ilovasida to'lov qiling\n"
-        f"3. To'lov muvaffaqiyatli bo'lgandan so'ng, bot avtomatik ravishda balansingizni to'ldiradi\n\n"
-        f"⏰ **Eslatma:** To'lov 5-10 daqiqada qayta ishlanadi"
-    )
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔗 To'lov qilish", url=click_payment_url)],
-        [InlineKeyboardButton(text="🔄 To'lov holatini tekshirish", callback_data=f"check_payment_{user_id}_{amount}")],
-        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="click_payment")]
-    ])
-    
-    if callback.message and hasattr(callback.message, 'edit_text') and not isinstance(callback.message, types.InaccessibleMessage):
-        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+@dp.message(OnboardingStates.waiting_click_amount)
+async def process_click_amount_input(message: types.Message, state: FSMContext):
+    """CLICK to'lov miqdorini qayta ishlash"""
+    try:
+        # Miqdorni tekshirish
+        amount_text = message.text.strip()
+        
+        # Faqat raqamlar va vergul/nuqta qabul qilish
+        if not amount_text.replace(',', '').replace('.', '').isdigit():
+            await message.answer(
+                "❌ **Noto'g'ri format!**\n\n"
+                "Iltimos, faqat raqam kiriting.\n"
+                "Masalan: 5000, 10000, 25000"
+            )
+            return
+        
+        # Miqdorni sonli formatga o'tkazish
+        amount = int(float(amount_text.replace(',', '.')))
+        
+        # Minimal va maksimal miqdorlarni tekshirish
+        if amount < 1000:
+            await message.answer(
+                "❌ **Miqdor juda kichik!**\n\n"
+                "Minimal to'lov miqdori: **1,000 so'm**"
+            )
+            return
+            
+        if amount > 1000000:
+            await message.answer(
+                "❌ **Miqdor juda katta!**\n\n"
+                "Maksimal to'lov miqdori: **1,000,000 so'm**"
+            )
+            return
+        
+        # Click to'lov yaratish
+        user_id = message.from_user.id
+        order_id = f"click_{user_id}_{int(datetime.now().timestamp())}"
+        
+        await message.answer("⏳ To'lov yaratilmoqda...")
+        
+        # Click API orqali to'lov yaratish
+        payment_result = await create_click_payment(amount, user_id, order_id)
+        
+        if payment_result["success"]:
+            # To'lov muvaffaqiyatli yaratildi
+            payment_url = payment_result["payment_url"]
+            payment_id = payment_result["payment_id"]
+            
+            text = (
+                f"💳 **CLICK to'lov - {amount:,} so'm**\n\n"
+                f"👤 **Foydalanuvchi:** @{message.from_user.username or 'Noma\'lum'}\n"
+                f"💰 **Miqdor:** {amount:,} so'm\n"
+                f"🆔 **To'lov ID:** {payment_id}\n\n"
+                f"🔗 **To'lov havolasi:**\n"
+                f"`{payment_url}`\n\n"
+                f"📱 **To'lov qilish uchun:**\n"
+                f"1. Havolani bosib o'ting\n"
+                f"2. Click ilovasida to'lov qiling\n"
+                f"3. To'lov muvaffaqiyatli bo'lgandan so'ng, bot avtomatik ravishda balansingizni to'ldiradi\n\n"
+                f"⏰ **Eslatma:** To'lov 5-10 daqiqada qayta ishlanadi"
+            )
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔗 To'lov qilish", url=payment_url)],
+                [InlineKeyboardButton(text="🔄 To'lov holatini tekshirish", callback_data=f"check_payment_{payment_id}")],
+                [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="click_payment")]
+            ])
+            
+            await message.answer(text, reply_markup=keyboard, parse_mode="Markdown")
+            
+            # FSM state'ni tozalash
+            await state.clear()
+            
+        else:
+            # To'lov yaratishda xatolik
+            error_text = (
+                f"❌ **To'lov yaratishda xatolik!**\n\n"
+                f"Xatolik: {payment_result['error']}\n\n"
+                f"Iltimos, qaytadan urinib ko'ring yoki boshqa usulni tanlang."
+            )
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Qayta urinish", callback_data="click_payment")],
+                [InlineKeyboardButton(text="📷 Chek yuborish", callback_data="send_receipt")],
+                [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="top_up_balance")]
+            ])
+            
+            await message.answer(error_text, reply_markup=keyboard, parse_mode="Markdown")
+            await state.clear()
+            
+    except ValueError:
+        await message.answer(
+            "❌ **Noto'g'ri format!**\n\n"
+            "Iltimos, to'g'ri raqam kiriting.\n"
+            "Masalan: 5000, 10000, 25000"
+        )
+    except Exception as e:
+        await message.answer(
+            f"❌ **Xatolik yuz berdi!**\n\n"
+            f"Xatolik: {str(e)}\n\n"
+            f"Iltimos, qaytadan urinib ko'ring."
+        )
+        await state.clear()
+
 
 @dp.callback_query(F.data.startswith("check_payment_"))
 async def check_click_payment_status(callback: types.CallbackQuery):
     """CLICK to'lov holatini tekshirish"""
-    parts = callback.data.split("_")
-    user_id = parts[2]
-    amount = int(parts[3])
+    payment_id = callback.data.replace("check_payment_", "")
     
     await callback.answer("🔄 To'lov holatini tekshirish...")
     
-    # Bu yerda real Click API orqali to'lov holatini tekshirish kerak
-    # Hozircha demo uchun random natija qaytaramiz
-    import random
-    is_paid = random.choice([True, False])
+    # Real Click API orqali to'lov holatini tekshirish
+    payment_status = await check_click_payment_status(payment_id)
     
-    if is_paid:
-        # To'lov muvaffaqiyatli bo'lsa, balansni to'ldirish
-        current_balance = await get_user_balance(user_id)
-        new_balance = current_balance + amount
-        await update_user_balance(user_id, new_balance)
+    if payment_status["success"]:
+        status = payment_status["status"]
+        amount = payment_status["amount"]
+        user_id = callback.from_user.id
         
-        text = (
-            f"✅ **To'lov muvaffaqiyatli!**\n\n"
-            f"💰 **To'ldirilgan miqdor:** {amount:,} so'm\n"
-            f"💳 **Joriy balans:** {new_balance:,} so'm\n\n"
-            f"🎉 Balansingiz muvaffaqiyatli to'ldirildi!"
-        )
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💰 Balansim", callback_data="my_balance")],
-            [InlineKeyboardButton(text="🏠 Bosh menyu", callback_data="main_menu")]
-        ])
+        if status == "confirmed":
+            # To'lov muvaffaqiyatli bo'lsa, balansni to'ldirish
+            current_balance = await get_user_balance(user_id)
+            new_balance = current_balance + amount
+            await update_user_balance(user_id, new_balance)
+            
+            text = (
+                f"✅ **To'lov muvaffaqiyatli!**\n\n"
+                f"💰 **To'ldirilgan miqdor:** {amount:,} so'm\n"
+                f"💳 **Joriy balans:** {new_balance:,} so'm\n\n"
+                f"🎉 Balansingiz muvaffaqiyatli to'ldirildi!"
+            )
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💰 Balansim", callback_data="my_balance")],
+                [InlineKeyboardButton(text="🏠 Bosh menyu", callback_data="main_menu")]
+            ])
+            
+        elif status == "cancelled":
+            text = (
+                f"❌ **To'lov bekor qilindi**\n\n"
+                f"💰 **Miqdor:** {amount:,} so'm\n\n"
+                f"💡 Yangi to'lov yaratish uchun qaytadan urinib ko'ring."
+            )
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Yangi to'lov", callback_data="click_payment")],
+                [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="top_up_balance")]
+            ])
+            
+        else:
+            # Pending yoki boshqa holat
+            text = (
+                f"⏳ **To'lov hali qayta ishlanmagan**\n\n"
+                f"💰 **Miqdor:** {amount:,} so'm\n"
+                f"📊 **Holat:** {status}\n\n"
+                f"📱 Iltimos, to'lovni tugatgandan so'ng yana urinib ko'ring.\n"
+                f"⏰ To'lov 5-10 daqiqada qayta ishlanadi."
+            )
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Qayta tekshirish", callback_data=f"check_payment_{payment_id}")],
+                [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="click_payment")]
+            ])
     else:
+        # API xatoligi
         text = (
-            f"⏳ **To'lov hali qayta ishlanmagan**\n\n"
-            f"💰 **Miqdor:** {amount:,} so'm\n\n"
-            f"📱 Iltimos, to'lovni tugatgandan so'ng yana urinib ko'ring.\n"
-            f"⏰ To'lov 5-10 daqiqada qayta ishlanadi."
+            f"❌ **To'lov holatini tekshirishda xatolik**\n\n"
+            f"Xatolik: {payment_status['error']}\n\n"
+            f"💡 Iltimos, keyinroq qaytadan urinib ko'ring."
         )
         
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Qayta tekshirish", callback_data=f"check_payment_{user_id}_{amount}")],
+            [InlineKeyboardButton(text="🔄 Qayta tekshirish", callback_data=f"check_payment_{payment_id}")],
             [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="click_payment")]
         ])
     
